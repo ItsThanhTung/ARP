@@ -70,7 +70,7 @@ if is_wandb_available():
     import wandb
 
 # Will error if the minimal version of diffusers is not installed. Remove at your own risks.
-check_min_version("0.28.0.dev0")
+# check_min_version("0.28.0.dev0")
 
 logger = get_logger(__name__)
 
@@ -145,6 +145,7 @@ def log_validation(
     pipeline.set_progress_bar_config(disable=True)
 
     # run inference
+    pipeline_args.update({"width" : 640, "height" : 480})
     generator = torch.Generator(device=accelerator.device).manual_seed(args.seed) if args.seed else None
 
     if args.validation_images is None:
@@ -576,9 +577,9 @@ class DreamBoothDataset(Dataset):
 
         self.instance_data_root = Path(instance_data_root)
         if not self.instance_data_root.exists():
-            raise ValueError("Instance images root doesn't exists.")
+            raise ValueError(f"Instance {self.instance_data_root} images root doesn't exists.")
 
-        self.instance_images_path = list(Path(instance_data_root).iterdir())
+        self.instance_images_path = [os.path.join(self.instance_data_root, path) for path in os.listdir(self.instance_data_root)]
         self.num_instance_images = len(self.instance_images_path)
         self.instance_prompt = instance_prompt
         self._length = self.num_instance_images
@@ -610,12 +611,8 @@ class DreamBoothDataset(Dataset):
 
     def __getitem__(self, index):
         example = {}
-        instance_image = Image.open(self.instance_images_path[index % self.num_instance_images])
-        instance_image = exif_transpose(instance_image)
-
-        if not instance_image.mode == "RGB":
-            instance_image = instance_image.convert("RGB")
-        example["instance_images"] = self.image_transforms(instance_image)
+        instance_latents = np.load(self.instance_images_path[index % self.num_instance_images])
+        example["instance_images"] = torch.from_numpy(instance_latents)
 
         if self.encoder_hidden_states is not None:
             example["instance_prompt_ids"] = self.encoder_hidden_states
@@ -1213,8 +1210,7 @@ def main(args):
 
                 if vae is not None:
                     # Convert images to latent space
-                    model_input = vae.encode(pixel_values).latent_dist.sample()
-                    model_input = model_input * vae.config.scaling_factor
+                    model_input = pixel_values * vae.config.scaling_factor
                 else:
                     model_input = pixel_values
 
