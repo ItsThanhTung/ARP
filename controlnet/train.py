@@ -43,7 +43,6 @@ from diffusers.optimization import get_scheduler
 from diffusers.utils import check_min_version, is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
 
-
 from controlnet.dataset_GTA import GTADataset
 from controlnet.tools.training_classes import (
     make_one_hot, 
@@ -101,74 +100,42 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step):
         generator = torch.Generator(device=accelerator.device).manual_seed(args.seed)
 
     with open(args.validate_file, 'r') as f:
-    
         # Initialize empty lists for different keys
         validation_images = []
-        
-        # Read each line of the file and append values to respective lists
         for line in f:
-            data = json.loads(line)                        
-            validation_images.append(data.get('conditioning_image'))
+            rgb_path, label_path = line.strip().split(",")[0:2]
+            validation_images.append({"image" : rgb_path, "conditioning_image" :  label_path})
 
-
-    def get_crop_onehot(label_path, resize_ratio=1.0, random_crop_enabled=True):
-        if "_color" in label_path:
-            label_trainId_path = label_path.replace("_color", "").replace(".png", "_labelTrainIds.png")
-        else:
-            label_trainId_path = label_path.replace(".png", "_labelTrainIds.png")
-
-        # rgb label color image
-        img = Image.open(label_path).convert("RGB")
-        # trainable id label image
-        label_trainId = Image.open(label_trainId_path)
-
-        crop_size = args.resolution
-
-        w, h = img.size
-        new_w, new_h = int(w * resize_ratio), int(h * resize_ratio)
-        
-        img = img.resize((new_w, new_h), Image.BILINEAR)
-        label_trainId = label_trainId.resize((new_w, new_h), Image.NEAREST)
-        w, h = new_w, new_h
-
-        if random_crop_enabled:
-            x1 = random.randint(0, w - crop_size)
-            y1 = random.randint(0, h - crop_size)
-        else:
-            x1 = (w -  crop_size) // 2
-            y1 = (h -  crop_size) // 2
-        
-        crop_coords = (x1, y1, x1 + crop_size, y1 + crop_size)
-        img = img.crop(crop_coords)
-        label_trainId = label_trainId.crop(crop_coords)
-        texts = get_class_stacks(label_trainId)
-
-        return img, label_trainId, texts
+    validation_images = random.sample(validation_images, 1)
 
     image_logs = []
     for i in range(len(validation_images)):
-        validation_img = validation_images[i]
-        resize_ratio = args.resize_ratios[i%len(args.resize_ratios)] if args.resize_ratios is not None else 1.0
+        item = validation_images[i]
+        img_file = item["image"]
+        label_file = item["conditioning_image"]
+        
+        rgb_image = Image.open(img_file).resize((640, 480), Image.Resampling.LANCZOS)
+        label_map = np.load(label_file)
+        label_map = np.array(Image.fromarray(label_map).resize((640, 480), Image.Resampling.NEAREST))
+        new_texts = get_class_stacks(label_map)
 
-        val_img, val_labelTrain, val_prompt = get_crop_onehot(validation_img, resize_ratio, random_crop_enabled=False)
+        val_prompt = f"A fisheye image contain {new_texts}"
 
-        val_labelTrain_img = Image.fromarray(map_label2RGB(val_labelTrain).astype(np.uint8))
-
-        val_labelTrain_onehot = torch.Tensor(make_one_hot(val_labelTrain))
-        val_labelTrain_onehot = torch.unsqueeze(val_labelTrain_onehot.permute(2, 0, 1), 0)
-
+        # process cropped image label into one-hot encoding
+        condition_tensor = torch.Tensor(make_one_hot(label_map))
+        condition_tensor = torch.unsqueeze(condition_tensor.permute(2, 0, 1), 0)
+        label_image = Image.fromarray(map_label2RGB(label_map).astype(np.uint8))
         images = []
 
         for _ in range(args.num_validation_images):
             with torch.autocast("cuda"):
                 image = pipeline(
-                    val_prompt, val_labelTrain_onehot, num_inference_steps=20, generator=generator
+                    val_prompt, condition_tensor, guidance_scale=3.0, num_inference_steps=50, generator=generator
                 ).images[0]
-
             images.append(image)
 
         image_logs.append(
-            {"validation_image": val_labelTrain_img, "images": images, "validation_prompt": val_prompt}
+            {"GT" : rgb_image, "validation_image": label_image, "images": images, "validation_prompt": val_prompt}
         )
 
     for tracker in accelerator.trackers:
@@ -177,9 +144,11 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step):
                 images = log["images"]
                 validation_prompt = log["validation_prompt"]
                 validation_image = log["validation_image"]
+                gt_image = log["GT"]
 
                 formatted_images = []
 
+                formatted_images.append(np.asarray(gt_image))
                 formatted_images.append(np.asarray(validation_image))
 
                 for image in images:
@@ -505,29 +474,6 @@ def parse_args(input_args=None):
         help="Proportion of image prompts to be replaced with empty strings. Defaults to 0 (no prompt replacement).",
     )
     parser.add_argument(
-        "--validation_prompt",
-        type=str,
-        default=None,
-        nargs="+",
-        help=(
-            "A set of prompts evaluated every `--validation_steps` and logged to `--report_to`."
-            " Provide either a matching number of `--validation_image`s, a single `--validation_image`"
-            " to be used with all prompts, or a single prompt that will be used with all `--validation_image`s."
-        ),
-    )
-    parser.add_argument(
-        "--validation_image",
-        type=str,
-        default=None,
-        nargs="+",
-        help=(
-            "A set of paths to the controlnet conditioning image be evaluated every `--validation_steps`"
-            " and logged to `--report_to`. Provide either a matching number of `--validation_prompt`s, a"
-            " a single `--validation_prompt` to be used with all `--validation_image`s, or a single"
-            " `--validation_image` that will be used with all `--validation_prompt`s."
-        ),
-    )
-    parser.add_argument(
         "--num_validation_images",
         type=int,
         default=2,
@@ -614,27 +560,9 @@ def parse_args(input_args=None):
 
     if args.proportion_empty_prompts < 0 or args.proportion_empty_prompts > 1:
         raise ValueError("`--proportion_empty_prompts` must be in the range [0, 1].")
-
-    if args.validation_prompt is not None and args.validation_image is None:
-        raise ValueError("`--validation_image` must be set if `--validation_prompt` is set")
-
-    if args.validation_prompt is None and args.validation_image is not None:
-        raise ValueError("`--validation_prompt` must be set if `--validation_image` is set")
     
     if args.rcs_enabled and args.rcs_data_root is None:
         raise ValueError("`--rcs_data_root` must be set if `--rcs_enabled` is set")
-
-    if (
-        args.validation_image is not None
-        and args.validation_prompt is not None
-        and len(args.validation_image) != 1
-        and len(args.validation_prompt) != 1
-        and len(args.validation_image) != len(args.validation_prompt)
-    ):
-        raise ValueError(
-            "Must provide either 1 `--validation_image`, 1 `--validation_prompt`,"
-            " or the same number of `--validation_prompt`s and `--validation_image`s"
-        )
 
     return args
 
@@ -745,7 +673,7 @@ def main(args):
         controlnet = ControlNetModel.from_pretrained(args.controlnet_model_name_or_path)
     else:
         logger.info("Initializing controlnet weights from unet")
-        controlnet = ControlNetModel.from_unet(unet)
+        controlnet = ControlNetModel.from_unet(unet, conditioning_channels=3)
 
     # `accelerate` 0.16.0 will have better support for customized saving
     if version.parse(accelerate.__version__) >= version.parse("0.16.0"):
@@ -954,8 +882,6 @@ def main(args):
         tracker_config = dict(vars(args))
 
         # tensorboard cannot handle list types for config
-        tracker_config.pop("validation_prompt")
-        tracker_config.pop("validation_image")
 
         accelerator.init_trackers(args.tracker_project_name, config=tracker_config)
 
@@ -970,7 +896,7 @@ def main(args):
     logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
     logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
-    global_step = 0
+    global_step = -1
     first_epoch = 0
 
     # Potentially load in the weights and states from a previous save
@@ -1016,7 +942,7 @@ def main(args):
                 class_pixels_stats = combine_dicts([class_pixels_stats, batch["label_stats"]])
 
                 # Convert images to latent space
-                latents = vae.encode(batch["pixel_values"].to(dtype=weight_dtype)).latent_dist.sample()
+                latents = batch["pixel_values"].to(dtype=weight_dtype)
                 latents = latents * vae.config.scaling_factor
 
                 # Sample noise that we'll add to the latents

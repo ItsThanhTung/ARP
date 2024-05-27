@@ -62,18 +62,15 @@ for anno_name, image_name in mapping_folder.items():
         data = {"label" : annotation_path}
         
         if os.path.isfile(os.path.join(TRAIN_DIR, masked_image_name)):
-            masked_image_path = os.path.join(TRAIN_DIR, masked_image_name)
-            data["rgb"] = masked_image_path
+            data["rgb"] = os.path.join(TRAIN_DIR, masked_image_name)
             train_paths.append(data)
 
         elif os.path.isfile(os.path.join(TEST_DIR, masked_image_name)):
-            os.path.isfile(os.path.join(TEST_DIR, masked_image_name))
-            data["rgb"] = masked_image_path
+            data["rgb"] = os.path.join(TEST_DIR, masked_image_name)
             test_paths.append(data)
 
         else:
             raise Exception("should not be here")
-
 
 print(f"ALL training data size: {len(train_paths)}")
 print(f"ALL testing data size: {len(test_paths)}")

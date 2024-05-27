@@ -47,7 +47,7 @@ class GTADataset(Dataset):
         latents = torch.from_numpy(np.load(latent_path))
 
         label_map = np.load(label_file)
-        breakpoint()
+        label_map = np.array(Image.fromarray(label_map).resize((640, 480), Image.Resampling.NEAREST))
         new_texts = get_class_stacks(label_map)
 
         caption = f"A fisheye image contain {new_texts}"

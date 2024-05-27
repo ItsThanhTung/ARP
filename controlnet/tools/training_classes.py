@@ -90,7 +90,7 @@ def map_label2RGB(label_map):
     palette = np.array(get_cs_palette())
 
     color_map = np.zeros((label_map.shape[0], label_map.shape[1], 3))
-    for label in range(0, 19):
+    for label in range(0, 3):
         color_map[label_map == label] = palette[label]
 
     color_map = color_map.astype(np.uint8)

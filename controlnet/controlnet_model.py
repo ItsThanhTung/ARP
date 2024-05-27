@@ -148,7 +148,7 @@ class ControlNetModel(ModelMixin, ConfigMixin):
     def __init__(
         self,
         in_channels: int = 4,
-        conditioning_channels: int = 20,
+        conditioning_channels: int = 3, # for background road obstacle
         flip_sin_to_cos: bool = True,
         freq_shift: int = 0,
         down_block_types: Tuple[str] = (
