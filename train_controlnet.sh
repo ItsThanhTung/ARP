@@ -1,6 +1,8 @@
 export CODE_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/code
 export DATA_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data
 export PRETRAINED_PATH=exp_real_data_2.1/model-45000
+export CONTROLNET_PATH=exp_controlnet_real_data_2.1/checkpoint-5000/controlnet
+
 
 GPU_STRING=$1
 GPU_COUNT=$(echo $GPU_STRING | tr ',' '\n' | wc -l)
@@ -9,12 +11,13 @@ echo "Number of GPUs: $GPU_COUNT - First GPU: $FIRST_GPU - Available GPU: $GPU_S
 
 accelerate launch -m controlnet.train \
                --pretrained_model_name_or_path=$PRETRAINED_PATH \
+               --controlnet_model_name_or_path=$CONTROLNET_PATH \
                --dataset_file=$DATA_DIR/real_train_semantic_data.txt \
                --output_dir="exp_controlnet_real_data_2.1" \
                --resolution=512 \
                --train_batch_size=8 \
                --num_train_epochs=100 \
-               --checkpointing_steps=5000 \
+               --checkpointing_steps=1000 \
                --checkpoints_total_limit=10 \
                --gradient_accumulation_steps=4 \
                --gradient_checkpointing \
