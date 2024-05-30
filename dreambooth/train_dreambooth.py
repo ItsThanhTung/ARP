@@ -171,7 +171,7 @@ def log_validation(
     else:
         pipeline_args = {"prompt": args.validation_prompt}
 
-    pipeline_args.update({"width" : 640, "height" : 480})
+    pipeline_args.update({"width" : 1024, "height" : 640})
     # run inference
     generator = None if args.seed is None else torch.Generator(device=accelerator.device).manual_seed(args.seed)
     images = []

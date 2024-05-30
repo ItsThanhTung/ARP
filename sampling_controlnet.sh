@@ -1,8 +1,8 @@
 export CODE_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/code
 export DATA_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data
 export PRETRAINED_PATH=exp_real_data_2.1/model-45000
-export CONTROLNET_PATH=exp_controlnet_real_data_2.1/checkpoint-5000/controlnet
-export OUT_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/sampling_data/test_sampling
+export CONTROLNET_PATH=/lustre/scratch/client/vinai/users/tungdt33/ARP/code/ARP/exp_controlnet_real_data_2.1/checkpoint-2000/controlnet
+export OUT_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/sampling_data/test_sampling_3
 
 GPU_STRING=$1
 GPU_COUNT=$(echo $GPU_STRING | tr ',' '\n' | wc -l)

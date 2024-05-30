@@ -40,6 +40,12 @@ MASK_DICT = {"0" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle
              "1" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/vfe34/roi_mask1.png",
              "2" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/vfe34/roi_mask2.png",
              "3" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/vfe34/roi_mask3.png"}
+             
+MASK_POS_DICT = {"0" : "rear",
+                 "1" : "front",
+                 "2" : "left",
+                 "3" : "right",
+                    }
 
 for key, value in MASK_DICT.items():
     if not os.path.isfile(value):
@@ -57,7 +63,7 @@ for subset in os.listdir(DATE_DIR):
             print(f"Something is wrong at {image_name} with mask_idx={mask_idx}")
         
         image_path = ospj(data_dir, image_name)
-        str_data = image_path + "," + MASK_DICT[mask_idx] 
+        str_data = image_path + "," + MASK_DICT[mask_idx] + "," + MASK_POS_DICT[mask_idx] 
 
         if subset in EXCLUDED_SUBSET:
             TRAIN_DATA.append(str_data)
@@ -71,6 +77,12 @@ MASK_DICT = {"im0" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehic
              "im2" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/togg/roi_mask_togg_img2.png",
              "im3" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/togg/roi_mask_togg_img3.png"}
 
+MASK_POS_DICT = {"im0" : "rear",
+                 "im1" : "left",
+                 "im2" : "right",
+                 "im3" : "front",
+                    }
+
 for key, value in MASK_DICT.items():
     if not os.path.isfile(value):
         print(f"Could not find {value}")
@@ -87,7 +99,7 @@ for subset in os.listdir(DATE_DIR):
             print(f"Something is wrong at {image_name} with mask_idx={mask_idx}")
         
         image_path = ospj(data_dir, image_name)
-        str_data = image_path + "," + MASK_DICT[mask_idx]
+        str_data = image_path + "," + MASK_DICT[mask_idx] + "," + MASK_POS_DICT[mask_idx] 
 
         TRAIN_DATA.append(str_data)    # FOR TOGG dataset, we only use for training
 
@@ -102,6 +114,16 @@ MASK_DICT = {"cam0" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehi
              "rear" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/ford/roi_mask_ford_3.png",
              "left" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/ford/roi_mask_ford_0.png",
              "right" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/ford/roi_mask_ford_2.png"}
+
+
+MASK_POS_DICT = {"cam0" : "left",
+                "cam1" : "front",
+                "cam2" : "right",
+                "cam3" : "rear",
+                "front" : "front",
+                "rear" : "rear",
+                "left" : "left",
+                "right" : "right"}
 
 for key, value in MASK_DICT.items():
     if not os.path.isfile(value):
@@ -130,7 +152,7 @@ for subset in os.listdir(DATE_DIR):
             print(f"Something is wrong at {image_name} with mask_idx={mask_idx}")
         
         image_path = ospj(data_dir, image_name)
-        str_data = image_path + "," + MASK_DICT[mask_idx]
+        str_data = image_path + "," + MASK_DICT[mask_idx] + "," + MASK_POS_DICT[mask_idx] 
 
         ALL_DATA.append(str_data)
 
@@ -144,6 +166,13 @@ MASK_DICT = {"front" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/veh
              "rear" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/vf8/roi_mask_vf8_img_rear.png",
              "left" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/vf8/roi_mask_vf8_img_left.png",
              "right" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/vf8/roi_mask_vf8_img_right.png"}
+
+MASK_POS_DICT = {
+                    "front" : "front",
+                    "rear" : "rear",
+                    "left" : "left",
+                    "right" : "right"}
+
 
 for key, value in MASK_DICT.items():
     if not os.path.isfile(value):
@@ -164,7 +193,7 @@ for date_dir in DATE_DIR:
                 print(f"Something is wrong at {image_name} with mask_idx={mask_idx}")
             
             image_path = ospj(data_dir, image_name)
-            str_data = image_path + "," + MASK_DICT[mask_idx]
+            str_data = image_path + "," + MASK_DICT[mask_idx] + "," + MASK_POS_DICT[mask_idx] 
 
             ALL_DATA.append(str_data)
 
@@ -173,6 +202,10 @@ for date_dir in DATE_DIR:
 data_dir = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/samsung_fdd/images"
 MASK_DICT = {"front" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/samsung/roi_mask_fdd_front.png",
              "rear" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/samsung/roi_mask_fdd_rear.png"}
+
+MASK_POS_DICT = {
+                "front" : "front",
+                "rear" : "rear"}
 
 for key, value in MASK_DICT.items():
     if not os.path.isfile(value):
@@ -189,7 +222,7 @@ for image_name in os.listdir(data_dir):
         print(f"Something is wrong at {image_name} with mask_idx={mask_idx}")
     
     image_path = ospj(data_dir, image_name)
-    str_data = image_path + "," + MASK_DICT[mask_idx]
+    str_data = image_path + "," + MASK_DICT[mask_idx] + "," + MASK_POS_DICT[mask_idx] 
 
     TRAIN_DATA.append(str_data)
 
@@ -199,6 +232,12 @@ MASK_DICT = {"FV" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicl
              "RV" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/woodscape/roi_mask_woodscape_05278_RV.png", 
              "MVR" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/woodscape/roi_mask_woodscape_05277_MVR.png", 
              "MVL" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/woodscape/roi_mask_woodscape_05280_MVL.png"}
+
+MASK_POS_DICT = {
+                "FV" : "front",
+                "MVR" : "right",
+                "MVL" : "left",
+                "RV" : "rear"}
 
 for key, value in MASK_DICT.items():
     if not os.path.isfile(value):
@@ -215,7 +254,7 @@ for image_name in os.listdir(data_dir):
         print(f"Something is wrong at {image_name} with mask_idx={mask_idx}")
     
     image_path = ospj(data_dir, image_name)
-    str_data = image_path + "," + MASK_DICT[mask_idx]
+    str_data = image_path + "," + MASK_DICT[mask_idx] + "," + MASK_POS_DICT[mask_idx] 
 
     TRAIN_DATA.append(str_data)
 

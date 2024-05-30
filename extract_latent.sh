@@ -1,5 +1,6 @@
 export CODE_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/code/ARP
 export PRETRAINED_PATH=stabilityai/stable-diffusion-2-1-base
+# export PRETRAINED_PATH=runwayml/stable-diffusion-v1-5
 export DATA_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/MASKED_REAL/train
 export OUT_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/MASKED_REAL/train_latent
 

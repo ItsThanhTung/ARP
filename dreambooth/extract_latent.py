@@ -157,7 +157,7 @@ class DreamBoothDataset(Dataset):
         if not instance_image.mode == "RGB":
             instance_image = instance_image.convert("RGB")
         
-        instance_image = instance_image.resize((640, 480), Image.BILINEAR)
+        instance_image = instance_image.resize((1024, 640), Image.BILINEAR)
         example["instance_images"] = self.image_transforms(instance_image) # 480 640
         # Image.fromarray(((example["instance_images"] * 0.5 + 0.5).permute(1, 2, 0).numpy() * 255.0).astype(np.uint8)).save("/lustre/scratch/client/vinai/users/tungdt33/ARP/data/test_data.png")
         

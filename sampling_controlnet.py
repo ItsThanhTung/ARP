@@ -273,10 +273,11 @@ def main(args):
             prompt = batch["prompts"]
             label_images = batch["label_images"][0].permute(1, 2, 0).cpu().numpy()
 
-            image = pipeline(prompt[0], controlnet_image, guidance_scale=5.0, num_inference_steps=50).images[0]
-            # image = (np.array(image) * 0.5 + label_images * 0.5).astype(np.uint8)
-            # image = Image.fromarray(image)
-            image.save(os.path.join(args.output_dir, "{:06}.png".format(idx)))
+            for i in range(args.num_samples):
+                image = pipeline(prompt[0], controlnet_image, guidance_scale=5.0, num_inference_steps=25).images[0]
+                # image = (np.array(image) * 0.5 + label_images * 0.5).astype(np.uint8)
+                # image = Image.fromarray(image)
+                image.save(os.path.join(args.output_dir, "{:06}_{}.png".format(idx, i)))
 
         progress_bar.update(1)
 
