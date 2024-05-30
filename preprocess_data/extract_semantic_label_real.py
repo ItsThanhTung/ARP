@@ -9,6 +9,21 @@ annotation_dir = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/inhouse/s
 TRAIN_DIR = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/MASKED_REAL/train"
 TEST_DIR = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/MASKED_REAL/test"
 
+TRAIN_TXT_PATH = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/real_train_data.txt"
+
+TRAIN_DATA_POS = {}
+with open(TRAIN_TXT_PATH, 'rt') as f:
+    for line in f:
+        rgb_path, label_path, position = line.strip().split(",")[0:3]
+        TRAIN_DATA_POS[rgb_path] = position
+
+TEST_TXT_PATH = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/real_test_data.txt"
+TEST_DATA_POS = {}
+with open(TEST_TXT_PATH, 'rt') as f:
+    for line in f:
+        rgb_path, label_path, position = line.strip().split(",")[0:3]
+        TEST_DATA_POS[rgb_path] = position
+
 mapping_folder = {"2022-08-10-15-18-13" : "2022-08-10/2022-08-10-15-18-13",
                 "2022-08-10-15-19-15" : "2022-08-10/2022-08-10-15-19-15",
                 "2022-08-10-15-23-19" : "2022-08-10/2022-08-10-15-23-19",
@@ -63,14 +78,56 @@ for anno_name, image_name in mapping_folder.items():
         
         if os.path.isfile(os.path.join(TRAIN_DIR, masked_image_name)):
             data["rgb"] = os.path.join(TRAIN_DIR, masked_image_name)
+            position = TRAIN_DATA_POS[image_path]
             train_paths.append(data)
 
         elif os.path.isfile(os.path.join(TEST_DIR, masked_image_name)):
             data["rgb"] = os.path.join(TEST_DIR, masked_image_name)
+            position = TEST_DATA_POS[image_path]
             test_paths.append(data)
 
         else:
             raise Exception("should not be here")
+        
+        data["position"] = position
+
+
+mapping_folder = {"/lustre/scratch/client/vinai/users/tungdt33/ARP/data/woodscape/semantic_annotations/processed_3_classes/2022-29-11-8234" : \
+                    "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/woodscape/rgb_alltraintest",
+                    "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/samsung_fdd/cvat_processed_3_classes/2023-16-03-3897" :\
+                    "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/samsung_fdd/images"}
+
+for annotation_folder, image_folder in mapping_folder.items():
+
+    for image_file in os.listdir(image_folder):
+        if image_file.split(".")[-1] not in ["jpg", "png"]:
+            continue
+        image_path = os.path.join(image_folder, image_file)
+        annotation_path = os.path.join(annotation_folder, image_file + ".npy")
+
+        if not os.path.isfile(annotation_path):
+            continue
+
+        assert os.path.isfile(image_path), f"something was wrong at, cant find {image_path}"
+
+        masked_image_name = "_".join(image_path.split("/")[-3:])
+
+        data = {"label" : annotation_path}
+        
+        if os.path.isfile(os.path.join(TRAIN_DIR, masked_image_name)):
+            data["rgb"] = os.path.join(TRAIN_DIR, masked_image_name)
+            position = TRAIN_DATA_POS[image_path]
+            train_paths.append(data)
+
+        elif os.path.isfile(os.path.join(TEST_DIR, masked_image_name)):
+            data["rgb"] = os.path.join(TEST_DIR, masked_image_name)
+            position = TEST_DATA_POS[image_path]
+            test_paths.append(data)
+
+        else:
+            raise Exception("should not be here")
+        
+        data["position"] = position
 
 print(f"ALL training data size: {len(train_paths)}")
 print(f"ALL testing data size: {len(test_paths)}")
@@ -81,11 +138,11 @@ TEST_TXT_PATH=os.path.join(OUT_TXT_DIR, "real_test_semantic_data.txt")
 
 wf = open(TRAIN_TXT_PATH, "+w")
 for data in train_paths:
-    wf.write(data["rgb"] + "," + data["label"] + "\n")
+    wf.write(data["rgb"] + "," + data["label"] + "," + data["position"] + "\n")
 
 wf.close()
 
 wf = open(TEST_TXT_PATH, "+w")
 for data in test_paths:
-    wf.write(data["rgb"] + "," + data["label"] + "\n")
+    wf.write(data["rgb"] + "," + data["label"] + "," + data["position"] + "\n")
 wf.close()
