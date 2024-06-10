@@ -1,8 +1,8 @@
 export CODE_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/code
 export DATA_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data
-export PRETRAINED_PATH=exp_real_data_2.1/model-45000
-export CONTROLNET_PATH=/lustre/scratch/client/vinai/users/tungdt33/ARP/code/ARP/exp_controlnet_real_data_2.1/checkpoint-2000/controlnet
-export OUT_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/sampling_data/test_sampling_3
+export PRETRAINED_PATH=exp_real_data_1.5_prompt/model-80000
+export CONTROLNET_PATH=exp_controlnet_real_data_1.5_prompt/checkpoint-18000/controlnet
+export OUT_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/sampling_data/test_real
 
 GPU_STRING=$1
 GPU_COUNT=$(echo $GPU_STRING | tr ',' '\n' | wc -l)
@@ -19,4 +19,4 @@ CUDA_VISIBLE_DEVICES=$GPU_STRING torchrun --nnodes 1 --nproc_per_node $GPU_COUNT
                                     --allow_tf32 \
                                     --mixed_precision=no \
                                     --enable_xformers_memory_efficient_attention \
-                                    --num_samples=1 \
+                                    --num_samples=4 \

@@ -123,6 +123,7 @@ def log_validation(
     global_step,
     prompt_embeds,
     negative_prompt_embeds,
+    validation_prompt,
 ):
     logger.info(
         f"Running validation... \n Generating {args.num_validation_images} images with prompt:"
@@ -169,9 +170,9 @@ def log_validation(
             "negative_prompt_embeds": negative_prompt_embeds,
         }
     else:
-        pipeline_args = {"prompt": args.validation_prompt}
+        pipeline_args = {"prompt": validation_prompt}
 
-    pipeline_args.update({"width" : 1024, "height" : 640})
+    pipeline_args.update({"width" : 640, "height" : 400})
     # run inference
     generator = None if args.seed is None else torch.Generator(device=accelerator.device).manual_seed(args.seed)
     images = []
@@ -189,7 +190,7 @@ def log_validation(
     for tracker in accelerator.trackers:
         if tracker.name == "tensorboard":
             np_images = np.stack([np.asarray(img) for img in images])
-            tracker.writer.add_images("validation", np_images, global_step, dataformats="NHWC")
+            tracker.writer.add_images(validation_prompt, np_images, global_step, dataformats="NHWC")
         if tracker.name == "wandb":
             tracker.log(
                 {
@@ -672,12 +673,20 @@ class DreamBoothDataset(Dataset):
 
     def __getitem__(self, index):
         example = {}
-        instance_latents = np.load(self.instance_images_path[index % self.num_instance_images])
+        image_path = self.instance_images_path[index % self.num_instance_images]
+        instance_latents = np.load(image_path)
         example["instance_images"] = torch.from_numpy(instance_latents)
+
+        position = os.path.basename(image_path).split(".")[0].split("_")[-1]
 
         if self.encoder_hidden_states is not None:
             example["instance_prompt_ids"] = self.encoder_hidden_states
         else:
+            if np.random.rand() > 0.1:
+                instance_prompt = f"A photo taken by a fisheye camera mounted on the {position} of a car"
+            else:
+                instance_prompt = ""
+
             text_inputs = tokenize_prompt(
                 self.tokenizer, self.instance_prompt, tokenizer_max_length=self.tokenizer_max_length
             )
@@ -1399,6 +1408,46 @@ def main(args):
                             global_step,
                             validation_prompt_encoder_hidden_states,
                             validation_prompt_negative_prompt_embeds,
+                            validation_prompt="A photo taken by a fisheye camera mounted on the front of a car",
+                        )
+                        images = log_validation(
+                            unwrap_model(text_encoder) if text_encoder is not None else text_encoder,
+                            tokenizer,
+                            unwrap_model(unet),
+                            vae,
+                            args,
+                            accelerator,
+                            weight_dtype,
+                            global_step,
+                            validation_prompt_encoder_hidden_states,
+                            validation_prompt_negative_prompt_embeds,
+                            validation_prompt="A photo taken by a fisheye camera mounted on the rear of a car",
+                        )
+                        images = log_validation(
+                            unwrap_model(text_encoder) if text_encoder is not None else text_encoder,
+                            tokenizer,
+                            unwrap_model(unet),
+                            vae,
+                            args,
+                            accelerator,
+                            weight_dtype,
+                            global_step,
+                            validation_prompt_encoder_hidden_states,
+                            validation_prompt_negative_prompt_embeds,
+                            validation_prompt="A photo taken by a fisheye camera mounted on the left of a car",
+                        )
+                        images = log_validation(
+                            unwrap_model(text_encoder) if text_encoder is not None else text_encoder,
+                            tokenizer,
+                            unwrap_model(unet),
+                            vae,
+                            args,
+                            accelerator,
+                            weight_dtype,
+                            global_step,
+                            validation_prompt_encoder_hidden_states,
+                            validation_prompt_negative_prompt_embeds,
+                            validation_prompt="A photo taken by a fisheye camera mounted on the right of a car",
                         )
 
                         if args.use_ema:

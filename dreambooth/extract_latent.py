@@ -123,9 +123,15 @@ class DreamBoothDataset(Dataset):
             raise ValueError(f"Instance {self.instance_data_root} images root doesn't exists.")
 
         # self.instance_images_path = list(Path(instance_data_root).iterdir())
-        self.instance_images_path = [os.path.join(self.instance_data_root, path) for path in os.listdir(self.instance_data_root)]
+        self.data = []
+        with open(self.instance_data_root, 'rt') as f:
+            for line in f:
+                rgb_path, mask_path, position = line.strip().split(",")[0:3]
+                self.data.append({"image" : rgb_path, "mask" :  mask_path,
+                                    "position" : position})
 
-        self.num_instance_images = len(self.instance_images_path)
+
+        self.num_instance_images = len(self.data)
         self._length = self.num_instance_images
 
         self.image_transforms = transforms.Compose(
@@ -146,21 +152,25 @@ class DreamBoothDataset(Dataset):
 
     def __getitem__(self, index):
         example = {}
-        image_path = self.instance_images_path[index % self.num_instance_images]
-        example["image_path"] = image_path
+        data_item = self.data[index % self.num_instance_images]
+        example["image_path"] = "_".join(data_item["image"].split("/")[-3:]).split(".")[0]  + "_" + data_item["position"] + ".png"
+        example["mask_path"] = data_item["mask"]
 
         try:
-            instance_image = Image.open(image_path)
+            image = (np.array(Image.open(data_item["image"]))[:, :, :3] / 255.0) * 2 -1
+            mask = np.array(Image.open(data_item["mask"])) / 255.0
+            instance_image = np.array(((image * mask) * 0.5 + 0.5) * 255.0, dtype=np.uint8)
+            instance_image = Image.fromarray(instance_image)
         except:
             return self.__getitem__(0)
 
         if not instance_image.mode == "RGB":
             instance_image = instance_image.convert("RGB")
         
-        instance_image = instance_image.resize((1024, 640), Image.BILINEAR)
+        instance_image = instance_image.resize((640, 400), Image.BILINEAR)
         example["instance_images"] = self.image_transforms(instance_image) # 480 640
         # Image.fromarray(((example["instance_images"] * 0.5 + 0.5).permute(1, 2, 0).numpy() * 255.0).astype(np.uint8)).save("/lustre/scratch/client/vinai/users/tungdt33/ARP/data/test_data.png")
-        
+        # breakpoint()
         return example
 
 

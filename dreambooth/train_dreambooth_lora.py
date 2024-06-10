@@ -123,6 +123,7 @@ def log_validation(
     pipeline_args,
     epoch,
     is_final_validation=False,
+    validation_prompt="",
 ):
     logger.info(
         f"Running validation... \n Generating {args.num_validation_images} images with prompt:"
@@ -145,7 +146,7 @@ def log_validation(
     pipeline.set_progress_bar_config(disable=True)
 
     # run inference
-    pipeline_args.update({"width" : 640, "height" : 480})
+    pipeline_args.update({"prompt" : validation_prompt, "width" : 640, "height" : 400})
     generator = torch.Generator(device=accelerator.device).manual_seed(args.seed) if args.seed else None
 
     if args.validation_images is None:
@@ -163,7 +164,7 @@ def log_validation(
             images.append(image)
 
     for tracker in accelerator.trackers:
-        phase_name = "test" if is_final_validation else "validation"
+        phase_name = validation_prompt # "test" if is_final_validation else "validation"
         if tracker.name == "tensorboard":
             np_images = np.stack([np.asarray(img) for img in images])
             tracker.writer.add_images(phase_name, np_images, epoch, dataformats="NHWC")
@@ -611,12 +612,20 @@ class DreamBoothDataset(Dataset):
 
     def __getitem__(self, index):
         example = {}
-        instance_latents = np.load(self.instance_images_path[index % self.num_instance_images])
+        image_path = self.instance_images_path[index % self.num_instance_images]
+        instance_latents = np.load(image_path)
         example["instance_images"] = torch.from_numpy(instance_latents)
+
+        position = os.path.basename(image_path).split(".")[0].split("_")[-1]
 
         if self.encoder_hidden_states is not None:
             example["instance_prompt_ids"] = self.encoder_hidden_states
         else:
+            if np.random.rand() > 0.1:
+                instance_prompt = f"A photo taken by a fisheye camera mounted on the {position} of a car"
+            else:
+                instance_prompt = ""
+
             text_inputs = tokenize_prompt(
                 self.tokenizer, self.instance_prompt, tokenizer_max_length=self.tokenizer_max_length
             )
@@ -1356,6 +1365,33 @@ def main(args):
                     accelerator,
                     pipeline_args,
                     epoch,
+                    validation_prompt="A photo taken by a fisheye camera mounted on the front of a car"
+                )
+                
+                images = log_validation(
+                    pipeline,
+                    args,
+                    accelerator,
+                    pipeline_args,
+                    epoch,
+                    validation_prompt="A photo taken by a fisheye camera mounted on the rear of a car"
+                )
+
+                images = log_validation(
+                    pipeline,
+                    args,
+                    accelerator,
+                    pipeline_args,
+                    epoch,
+                    validation_prompt="A photo taken by a fisheye camera mounted on the left of a car"
+                )
+                images = log_validation(
+                    pipeline,
+                    args,
+                    accelerator,
+                    pipeline_args,
+                    epoch,
+                    validation_prompt="A photo taken by a fisheye camera mounted on the right of a car"
                 )
 
     # Save the lora layers

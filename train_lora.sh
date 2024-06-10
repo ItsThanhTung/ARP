@@ -1,6 +1,6 @@
 export CODE_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/code
-export DATA_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/MASKED_REAL/train_latent
-export PRETRAINED_PATH=stabilityai/stable-diffusion-2-1-base
+export DATA_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/SYNTHETIC/MASKED_SYNTHETIC/train_latent_1.5
+export PRETRAINED_PATH=exp_real_data_1.5/model-20000
 
 GPU_STRING=$1
 GPU_COUNT=$(echo $GPU_STRING | tr ',' '\n' | wc -l)
@@ -14,12 +14,12 @@ CUDA_VISIBLE_DEVICES=$GPU_STRING torchrun --nnodes 1 --nproc_per_node $GPU_COUNT
                                         --pretrained_model_name_or_path=$PRETRAINED_PATH \
                                         --instance_data_dir=$DATA_DIR \
                                         --instance_prompt='' \
-                                        --output_dir="exp_real_data_2.1_lora" \
+                                        --output_dir="exp_synthetic_data_1.5_lora_prompt" \
                                         --resolution=512 \
                                         --center_crop \
-                                        --train_batch_size=16 \
+                                        --train_batch_size=32 \
                                         --sample_batch_size=1 \
-                                        --num_train_epochs=100 \
+                                        --num_train_epochs=200 \
                                         --checkpointing_steps=5000 \
                                         --checkpoints_total_limit=10 \
                                         --gradient_accumulation_steps=4 \
@@ -35,6 +35,6 @@ CUDA_VISIBLE_DEVICES=$GPU_STRING torchrun --nnodes 1 --nproc_per_node $GPU_COUNT
                                         --num_validation_images=4 \
                                         --validation_epochs=1 \
                                         --mixed_precision=no \
-                                        --rank=32 \
+                                        --rank=128 \
                                         --enable_xformers_memory_efficient_attention \
                                         # --resume_from_checkpoint /home/ubuntu/Workspace/tung-dev/DGInStyle/exp_base_all_data_2.1/checkpoint-15000

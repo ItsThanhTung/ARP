@@ -103,8 +103,8 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step):
         # Initialize empty lists for different keys
         validation_images = []
         for line in f:
-            rgb_path, label_path = line.strip().split(",")[0:2]
-            validation_images.append({"image" : rgb_path, "conditioning_image" :  label_path})
+            rgb_path, label_path, position = line.strip().split(",")[0:3]
+            validation_images.append({"image" : rgb_path, "conditioning_image" :  label_path, "position" : position})
 
     validation_images = random.sample(validation_images, 1)
 
@@ -113,13 +113,14 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step):
         item = validation_images[i]
         img_file = item["image"]
         label_file = item["conditioning_image"]
+        position = item["position"]
         
-        rgb_image = Image.open(img_file).resize((640, 480), Image.Resampling.LANCZOS)
+        rgb_image = Image.open(img_file).resize((640, 400), Image.Resampling.LANCZOS)
         label_map = np.load(label_file)
-        label_map = np.array(Image.fromarray(label_map).resize((640, 480), Image.Resampling.NEAREST))
+        label_map = np.array(Image.fromarray(label_map).resize((640, 400), Image.Resampling.NEAREST))
         new_texts = get_class_stacks(label_map)
 
-        val_prompt = f"A fisheye image contain {new_texts}"
+        val_prompt = f"A photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}" 
 
         # process cropped image label into one-hot encoding
         condition_tensor = torch.Tensor(make_one_hot(label_map))

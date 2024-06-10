@@ -7,7 +7,7 @@ import os.path as osp
 
 import numpy as np
 from PIL import Image
-
+import os
 
 import torch
 from torchvision import transforms
@@ -32,36 +32,47 @@ class GTADataset(Dataset):
 
         with open(self.file_path, 'rt') as f:
             for line in f:
-                rgb_path, label_path = line.strip().split(",")[0:2]
-                self.data.append({"image" : rgb_path, "conditioning_image" :  label_path})
+                # rgb_path, label_path, position, albedo_path, normal_path, depth_path = line.strip().split(",")[0:6]
+                # self.data.append({"image" : rgb_path, "conditioning_image" :  label_path,
+                #                     "position" : position, "albedo" : albedo_path, \
+                #                     "normal" : normal_path, "depth" : depth_path})
+                rgb_path, label_path, position = line.strip().split(",")[0:3]
+                self.data.append({"image" : rgb_path, "conditioning_image" :  label_path,
+                                    "position" : position})
     
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        item = self.data[idx]
-        img_file = item["image"]
-        label_file = item["conditioning_image"]
+        try:
+            item = self.data[idx]
+            img_file = item["image"]
+            label_file = item["conditioning_image"]
+            position = item["position"]
+            
+            latent_path = os.path.join(os.path.dirname(img_file).replace("train", "train_latent_1.5"), \
+                                    os.path.basename(img_file)[:-4] + f"_{position}" + ".npy")
+            latents = torch.from_numpy(np.load(latent_path))
 
-        latent_path = img_file.replace("train", "train_latent").split(".")[0] + ".npy"
-        latents = torch.from_numpy(np.load(latent_path))
+            label_map = np.load(label_file)
+            label_map = np.array(Image.fromarray(label_map).resize((640, 400), Image.Resampling.NEAREST))
+            new_texts = get_class_stacks(label_map)
 
-        label_map = np.load(label_file)
-        label_map = np.array(Image.fromarray(label_map).resize((640, 480), Image.Resampling.NEAREST))
-        new_texts = get_class_stacks(label_map)
+            caption = f"A photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}"
+            # get label statistics for cropped image
+            label_stats = get_label_stats(label_map)
 
-        caption = f"A fisheye image contain {new_texts}"
-        # get label statistics for cropped image
-        label_stats = get_label_stats(label_map)
-
-        # process cropped image label into one-hot encoding
-        condition_img = make_one_hot(label_map)
-        condition_img = self.conditioning_img_transforms(condition_img)
-    
-        inputs = self.tokenizer(
-            caption, max_length=self.tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt"
-        )
-        input_ids = inputs.input_ids[0]
+            # process cropped image label into one-hot encoding
+            condition_img = make_one_hot(label_map)
+            condition_img = self.conditioning_img_transforms(condition_img)
+        
+            inputs = self.tokenizer(
+                caption, max_length=self.tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt"
+            )
+            input_ids = inputs.input_ids[0]
+            
+        except:
+            return self.__getitem__(0)
 
 
         return dict(pixel_values=latents, 
@@ -86,8 +97,8 @@ class TestDataset(Dataset):
 
         with open(self.file_path, 'rt') as f:
             for line in f:
-                rgb_path, label_path = line.strip().split(",")[0:2]
-                self.data.append({"image" : rgb_path, "conditioning_image" :  label_path})
+                rgb_path, label_path, position = line.strip().split(",")[0:3]
+                self.data.append({"image" : rgb_path, "conditioning_image" :  label_path, "position" : position})
     
     def __len__(self):
         return len(self.data)
@@ -96,13 +107,14 @@ class TestDataset(Dataset):
         item = self.data[idx]
         img_file = item["image"]
         label_file = item["conditioning_image"]
+        position = item["position"]
 
         label_map = np.load(label_file)
-        label_map = np.array(Image.fromarray(label_map).resize((640, 480), Image.Resampling.NEAREST))
+        label_map = np.array(Image.fromarray(label_map).resize((1024, 640), Image.Resampling.NEAREST))
         label_image = torch.tensor(map_label2RGB(label_map).astype(np.uint8)).permute(2, 0, 1)
         new_texts = get_class_stacks(label_map)
 
-        caption = f"A fisheye image contain {new_texts}"
+        caption = f"A fisheye image at {position}, contains {new_texts}"
         # get label statistics for cropped image
         label_stats = get_label_stats(label_map)
 

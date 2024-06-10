@@ -19,7 +19,7 @@ from diffusers import (
 
 
 def convert_checkpoint_to_model(
-    checkpoint_path: str, output_dir: str, pretrained_model_name_or_path: str = "stabilityai/stable-diffusion-2-1-base"
+    checkpoint_path: str, output_dir: str, pretrained_model_name_or_path: str = "runwayml/stable-diffusion-v1-5"
 ):
     unet = UNet2DConditionModel.from_pretrained(checkpoint_path)
 

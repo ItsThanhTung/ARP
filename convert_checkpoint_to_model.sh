@@ -1,2 +1,2 @@
-python convert_checkpoint_to_model.py --checkpoint_path /lustre/scratch/client/vinai/users/tungdt33/ARP/code/ARP/exp_real_data_2.1/checkpoint-45000/unet_ema \
-                                      --output_dir /lustre/scratch/client/vinai/users/tungdt33/ARP/code/ARP/exp_real_data_2.1/model-45000
+python convert_checkpoint_to_model.py --checkpoint_path /lustre/scratch/client/vinai/users/tungdt33/ARP/code/ARP/exp_real_data_1.5_prompt/checkpoint-80000/unet_ema \
+                                      --output_dir /lustre/scratch/client/vinai/users/tungdt33/ARP/code/ARP/exp_real_data_1.5_prompt/model-80000

@@ -1,2 +1,2 @@
-python preprocess_data/extract_rosbag.py /lustre/scratch/client/vinai/users/tungdt33/ARP/data/SYNTHETIC/bag/arp.town01.weather01.route02.bag \
+python preprocess_data/extract_rosbag.py /lustre/scratch/client/vinai/users/tungdt33/ARP/data/SYNTHETIC/bag/arp.town02.weather02.route02.bag \
                                          /lustre/scratch/client/vinai/users/tungdt33/ARP/data/SYNTHETIC/extracted
