@@ -99,21 +99,18 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step):
     else:
         generator = torch.Generator(device=accelerator.device).manual_seed(args.seed)
 
-    with open(args.validate_file, 'r') as f:
-        # Initialize empty lists for different keys
-        validation_images = []
-        for line in f:
-            rgb_path, label_path, position = line.strip().split(",")[0:3]
-            validation_images.append({"image" : rgb_path, "conditioning_image" :  label_path, "position" : position})
+
+    with open(args.validate_file) as json_data:
+        validation_images = json.load(json_data)
 
     validation_images = random.sample(validation_images, 1)
 
     image_logs = []
     for i in range(len(validation_images)):
         item = validation_images[i]
-        img_file = item["image"]
-        label_file = item["conditioning_image"]
-        position = item["position"]
+        img_file = item["img_path"]
+        label_file = item["seg_path"]
+        position = item["view"]
         
         rgb_image = Image.open(img_file).resize((640, 400), Image.Resampling.LANCZOS)
         label_map = np.load(label_file)

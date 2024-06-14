@@ -24,6 +24,7 @@ import os
 import shutil
 import warnings
 from pathlib import Path
+import json
 
 import numpy as np
 import torch
@@ -179,7 +180,7 @@ def log_validation(
     if args.validation_images is None:
         for _ in range(args.num_validation_images):
             with torch.autocast("cuda"):
-                image = pipeline(**pipeline_args, num_inference_steps=25, generator=generator).images[0]
+                image = pipeline(**pipeline_args, guidance_scale=2.0, num_inference_steps=25, generator=generator).images[0]
             images.append(image)
     else:
         for image in args.validation_images:
@@ -641,7 +642,10 @@ class DreamBoothDataset(Dataset):
         if not self.instance_data_root.exists():
             raise ValueError(f"Instance {self.instance_data_root} images root doesn't exists.")
 
-        self.instance_images_path = [os.path.join(self.instance_data_root, path) for path in os.listdir(self.instance_data_root)]
+        # self.instance_images_path = [os.path.join(self.instance_data_root, path) for path in os.listdir(self.instance_data_root)]
+        with open(self.instance_data_root) as json_data:
+            self.instance_images_path = json.load(json_data)
+
         self.num_instance_images = len(self.instance_images_path)
         self.instance_prompt = instance_prompt
         self._length = self.num_instance_images
@@ -674,18 +678,19 @@ class DreamBoothDataset(Dataset):
     def __getitem__(self, index):
         example = {}
         image_path = self.instance_images_path[index % self.num_instance_images]
-        instance_latents = np.load(image_path)
+
+        instance_latents = np.load(image_path["latent"])
         example["instance_images"] = torch.from_numpy(instance_latents)
 
-        position = os.path.basename(image_path).split(".")[0].split("_")[-1]
+        position = image_path["view"] 
 
         if self.encoder_hidden_states is not None:
             example["instance_prompt_ids"] = self.encoder_hidden_states
         else:
-            if np.random.rand() > 0.1:
-                instance_prompt = f"A photo taken by a fisheye camera mounted on the {position} of a car"
-            else:
-                instance_prompt = ""
+            # if np.random.rand() > 0.1:
+            instance_prompt = f"A photo taken by a fisheye camera mounted on the {position} of a car"
+            # else:
+                # instance_prompt = ""
 
             text_inputs = tokenize_prompt(
                 self.tokenizer, self.instance_prompt, tokenizer_max_length=self.tokenizer_max_length

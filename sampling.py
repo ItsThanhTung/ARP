@@ -36,9 +36,8 @@ from diffusers import (
     DDPMScheduler,
     UNet2DConditionModel,
     UniPCMultistepScheduler,
-    ControlNetModel,
 )
-from diffusers.pipelines import StableDiffusionControlNetPipeline
+from diffusers import StableDiffusionPipeline    
 from diffusers.optimization import get_scheduler
 from diffusers.utils import check_min_version, is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
@@ -87,13 +86,6 @@ def parse_args(input_args=None):
         help="Path to pretrained model or model identifier from huggingface.co/models.",
     )
     parser.add_argument(
-        "--controlnet_model_name_or_path",
-        type=str,
-        default=None,
-        help="Path to pretrained controlnet model or model identifier from huggingface.co/models."
-        " If not specified controlnet weights are initialized from unet.",
-    )
-    parser.add_argument(
         "--revision",
         type=str,
         default=None,
@@ -139,13 +131,6 @@ def parse_args(input_args=None):
     )
     parser.add_argument(
         "--enable_xformers_memory_efficient_attention", action="store_true", help="Whether or not to use xformers."
-    )
-    parser.add_argument(
-        "--dataset_file",
-        type=str,
-        required=True,
-        default=None,
-        help="File path for constructing the dataset.",
     )
 
     parser.add_argument(
@@ -204,13 +189,9 @@ def main(args):
     if args.seed is not None:
         set_seed(args.seed)
     # Handle the repository creation
-    image_dir = os.path.join(args.output_dir, "images")
-    label_dir = os.path.join(args.output_dir, "labels")
 
     if accelerator.is_main_process:
         os.makedirs(args.output_dir, exist_ok=True)
-        os.makedirs(image_dir, exist_ok=True)
-        os.makedirs(label_dir, exist_ok=True)
 
     weight_dtype = torch.float32
     if accelerator.mixed_precision == "fp16":
@@ -219,17 +200,13 @@ def main(args):
         weight_dtype = torch.bfloat16
 
 
-    logger.info("Loading existing controlnet weights")
-    controlnet = ControlNetModel.from_pretrained(args.controlnet_model_name_or_path)
-
-    pipeline = StableDiffusionControlNetPipeline.from_pretrained(
-        args.pretrained_model_name_or_path,
-        controlnet=controlnet,
-        safety_checker=None,
-        revision=args.revision,
-        torch_dtype=weight_dtype,
-    )
-
+    logger.info("Loading StableDiffusionPipeline")
+    pipeline = StableDiffusionPipeline.from_pretrained(args.pretrained_model_name_or_path,
+                                                        safety_checker=None,
+                                                        revision=args.revision,
+                                                        torch_dtype=weight_dtype,
+                                                        )
+    # pipeline.scheduler = DPMSolverMultistepScheduler.from_config(pipeline.scheduler.config)      
     pipeline.scheduler = UniPCMultistepScheduler.from_config(pipeline.scheduler.config)
     
     if args.enable_xformers_memory_efficient_attention:
@@ -250,42 +227,27 @@ def main(args):
     if args.allow_tf32:
         torch.backends.cuda.matmul.allow_tf32 = True
 
-    train_dataset = make_train_dataset(args, pipeline.tokenizer, accelerator)
-    train_dataloader = torch.utils.data.DataLoader(
-        train_dataset,
-        shuffle=True,
-        batch_size=1,
-        num_workers=args.dataloader_num_workers,
-    )
-
-    # Prepare everything with our `accelerator`.
-    train_dataloader = accelerator.prepare(train_dataloader)
     pipeline = pipeline.to(accelerator.device)
     pipeline.set_progress_bar_config(disable=True)
 
     progress_bar = tqdm(
-        range(0, len(train_dataloader)),
+        range(0, args.num_samples),
         desc="Steps",
         # Only show the progress bar once on each machine.
         disable=not accelerator.is_local_main_process,
     )
 
-    for step, batch in enumerate(train_dataloader):
-        with torch.inference_mode():
-            idx = str(batch["idx"].item())
-            controlnet_image = batch["conditioning_pixel_values"]
-            prompt = batch["prompts"]
-            label_images = batch["label_images"][0].permute(1, 2, 0).cpu().numpy()
+    POSITION = ["front", "rear", "left", "right"]
+    rank = torch.distributed.get_rank()
+    with torch.inference_mode():
+        for idx in range(args.num_samples):
+            for pos in POSITION:
+                prompt = f"A photo taken by a fisheye camera mounted on the {pos} of a car"
+                image = pipeline(prompt, width=640, height=400, guidance_scale=3.0, num_inference_steps=25).images[0]
+                image.save(os.path.join(args.output_dir, "{}_rank-{}_{:06}.png".format(pos, rank, idx)))
 
-            for i in range(args.num_samples):
-                image = pipeline(prompt[0], controlnet_image, width=640, height=400, guidance_scale=2.5, num_inference_steps=25).images[0]
-                image.save(os.path.join(image_dir, "{:06}_{}.png".format(idx, i)))
+            progress_bar.update(1)
 
-                image = (np.array(image) * 0.5 + label_images * 0.5).astype(np.uint8)
-                image = Image.fromarray(image)
-                image.save(os.path.join(label_dir, "{:06}_{}.png".format(idx, i)))
-
-        progress_bar.update(1)
 
 
 if __name__ == "__main__":

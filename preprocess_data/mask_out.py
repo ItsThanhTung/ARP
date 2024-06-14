@@ -4,6 +4,7 @@ import glob
 import os
 from os import path as osp
 from os.path import join as ospj
+import json
 
 def test_mask(str_data):
     print(str_data)
@@ -18,22 +19,13 @@ def test_mask(str_data):
 
 TOTAL_IMAGES=0
 OUT_TXT_DIR="/lustre/scratch/client/vinai/users/tungdt33/ARP/data"
-TRAIN_TXT_PATH=ospj(OUT_TXT_DIR, "real_train_data.txt")
-TEST_TXT_PATH=ospj(OUT_TXT_DIR, "real_test_data.txt")
+TRAIN_TXT_PATH=ospj(OUT_TXT_DIR, "real_train_data.json")
+TEST_TXT_PATH=ospj(OUT_TXT_DIR, "real_test_data.json")
 
 ALL_DATA = []
 TRAIN_DATA = []
 TEST_DATA = []
 
-EXCLUDED_SUBSET= ["2022-08-10-15-18-13",
-                  "2022-08-10-15-19-15",
-                  "2022-08-10-15-22-18",
-                  "2022-08-10-15-23-19",
-                  "2022-08-10-15-24-20",
-                  "2022-08-10-18-05-03",
-                  "2022-08-10-18-08-46",
-                  "2022-08-10-18-11-35",
-                  "2022-08-10-18-15-19"]
 
 DATE_DIR="/lustre/scratch/client/vinai/users/tungdt33/ARP/data/inhouse/segment/rgb/2022-08-10"
 MASK_DICT = {"0" : "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/vehicle_mask/vfe34/roi_mask0.png",
@@ -65,10 +57,13 @@ for subset in os.listdir(DATE_DIR):
         image_path = ospj(data_dir, image_name)
         str_data = image_path + "," + MASK_DICT[mask_idx] + "," + MASK_POS_DICT[mask_idx] 
 
-        if subset in EXCLUDED_SUBSET:
-            TRAIN_DATA.append(str_data)
-        else:
-            ALL_DATA.append(str_data)
+        str_data = {"tag" : "2022-08-10", 
+                    "img_path" : image_path,
+                    "mask" : MASK_DICT[mask_idx],
+                    "view" : MASK_POS_DICT[mask_idx],
+                   }
+
+        ALL_DATA.append(str_data)
 
 
 DATE_DIR="/lustre/scratch/client/vinai/users/tungdt33/ARP/data/inhouse/segment/rgb/2023-06-02"
@@ -100,6 +95,12 @@ for subset in os.listdir(DATE_DIR):
         
         image_path = ospj(data_dir, image_name)
         str_data = image_path + "," + MASK_DICT[mask_idx] + "," + MASK_POS_DICT[mask_idx] 
+
+        str_data = {"tag" : "2023-06-02", 
+                    "img_path" : image_path,
+                    "mask" : MASK_DICT[mask_idx],
+                    "view" : MASK_POS_DICT[mask_idx],
+                    }
 
         TRAIN_DATA.append(str_data)    # FOR TOGG dataset, we only use for training
 
@@ -154,6 +155,11 @@ for subset in os.listdir(DATE_DIR):
         image_path = ospj(data_dir, image_name)
         str_data = image_path + "," + MASK_DICT[mask_idx] + "," + MASK_POS_DICT[mask_idx] 
 
+        str_data = {"tag" : "2023-06-06", 
+                    "img_path" : image_path,
+                    "mask" : MASK_DICT[mask_idx],
+                    "view" : MASK_POS_DICT[mask_idx],
+                    }
         ALL_DATA.append(str_data)
 
 
@@ -195,6 +201,12 @@ for date_dir in DATE_DIR:
             image_path = ospj(data_dir, image_name)
             str_data = image_path + "," + MASK_DICT[mask_idx] + "," + MASK_POS_DICT[mask_idx] 
 
+            str_data = {"tag" : "vf8", 
+                    "img_path" : image_path,
+                    "mask" : MASK_DICT[mask_idx],
+                    "view" : MASK_POS_DICT[mask_idx],
+                    }
+
             ALL_DATA.append(str_data)
 
 
@@ -223,6 +235,12 @@ for image_name in os.listdir(data_dir):
     
     image_path = ospj(data_dir, image_name)
     str_data = image_path + "," + MASK_DICT[mask_idx] + "," + MASK_POS_DICT[mask_idx] 
+
+    str_data = {"tag" : "samsung_fdd", 
+                "img_path" : image_path,
+                "mask" : MASK_DICT[mask_idx],
+                "view" : MASK_POS_DICT[mask_idx],
+                }
 
     TRAIN_DATA.append(str_data)
 
@@ -256,6 +274,12 @@ for image_name in os.listdir(data_dir):
     image_path = ospj(data_dir, image_name)
     str_data = image_path + "," + MASK_DICT[mask_idx] + "," + MASK_POS_DICT[mask_idx] 
 
+    str_data = {"tag" : "woodscape", 
+                "img_path" : image_path,
+                "mask" : MASK_DICT[mask_idx],
+                "view" : MASK_POS_DICT[mask_idx],
+                }
+
     TRAIN_DATA.append(str_data)
 
 
@@ -265,23 +289,16 @@ from sklearn.model_selection import train_test_split
 # Split the data into 80% training and 20% testing
 train_data, test_data = train_test_split(ALL_DATA, test_size=0.2, random_state=42)
 
-# Print the sizes of the splits to verify
-print(f"Training data size: {len(train_data)}")
-print(f"Testing data size: {len(test_data)}")
-
 TRAIN_DATA += train_data
 TEST_DATA = test_data
 
 print(f"ALL training data size: {len(TRAIN_DATA)}")
 print(f"ALL testing data size: {len(TEST_DATA)}")
 
-wf = open(TRAIN_TXT_PATH, "+w")
-for data in TRAIN_DATA:
-    wf.write(data + "\n")
 
-wf.close()
+with open(TRAIN_TXT_PATH, '+w') as f:
+    json.dump(TRAIN_DATA, f)
 
-wf = open(TEST_TXT_PATH, "+w")
-for data in TEST_DATA:
-    wf.write(data + "\n")
-wf.close()
+with open(TEST_TXT_PATH, '+w') as f:
+    json.dump(TEST_DATA, f)
+

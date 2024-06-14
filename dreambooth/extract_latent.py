@@ -10,6 +10,7 @@ import os
 import shutil
 import warnings
 from pathlib import Path
+import json
 
 import numpy as np
 import torch
@@ -124,11 +125,13 @@ class DreamBoothDataset(Dataset):
 
         # self.instance_images_path = list(Path(instance_data_root).iterdir())
         self.data = []
-        with open(self.instance_data_root, 'rt') as f:
-            for line in f:
-                rgb_path, mask_path, position = line.strip().split(",")[0:3]
-                self.data.append({"image" : rgb_path, "mask" :  mask_path,
-                                    "position" : position})
+        with open(self.instance_data_root) as json_data:
+            self.data = json.load(json_data)
+        # with open(self.instance_data_root, 'rt') as f:
+        #     for line in f:
+        #         rgb_path, mask_path, position = line.strip().split(",")[0:3]
+        #         self.data.append({"image" : rgb_path, "mask" :  mask_path,
+        #                             "position" : position})
 
 
         self.num_instance_images = len(self.data)
@@ -153,16 +156,17 @@ class DreamBoothDataset(Dataset):
     def __getitem__(self, index):
         example = {}
         data_item = self.data[index % self.num_instance_images]
-        example["image_path"] = "_".join(data_item["image"].split("/")[-3:]).split(".")[0]  + "_" + data_item["position"] + ".png"
-        example["mask_path"] = data_item["mask"]
 
-        try:
-            image = (np.array(Image.open(data_item["image"]))[:, :, :3] / 255.0) * 2 -1
-            mask = np.array(Image.open(data_item["mask"])) / 255.0
-            instance_image = np.array(((image * mask) * 0.5 + 0.5) * 255.0, dtype=np.uint8)
-            instance_image = Image.fromarray(instance_image)
-        except:
-            return self.__getitem__(0)
+        example["image_path"] = str(data_item["id"]) + "_"  + data_item["tag"] + "_" + os.path.basename(data_item["img_path"])
+        example["mask_path"] = data_item["mask"]
+        instance_image = Image.open(data_item["img_path"])
+        # try:
+        #     image = (np.array(Image.open(data_item["image"]))[:, :, :3] / 255.0) * 2 -1
+        #     mask = np.array(Image.open(data_item["mask"])) / 255.0
+        #     instance_image = np.array(((image * mask) * 0.5 + 0.5) * 255.0, dtype=np.uint8)
+        #     instance_image = Image.fromarray(instance_image)
+        # except:
+        #     return self.__getitem__(0)
 
         if not instance_image.mode == "RGB":
             instance_image = instance_image.convert("RGB")
@@ -226,7 +230,7 @@ def main(args):
         model_input = vae.encode(batch["instance_images"].to(dtype=weight_dtype)).latent_dist.sample()
 
         for image_path, precompute_latent in zip(batch["image_path"], model_input):
-            save_path = os.path.basename(image_path).split(".")[0] + ".npy"
+            save_path = image_path.split(".")[0] + ".npy"
             save_path = os.path.join(args.output_dir, save_path)
             np.save(save_path, precompute_latent.cpu().numpy())
                 

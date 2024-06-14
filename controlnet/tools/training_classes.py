@@ -9,7 +9,7 @@ import torch
 
 def get_cs_classes():
     """Cityscapes class names for external use."""
-    return ['background', 'obstacle', 'road']
+    return ['background', 'road', 'obstacle']
 
 def get_cs_palette():
     return  [[0, 0, 0], [0, 0, 142], [128, 64, 128]]

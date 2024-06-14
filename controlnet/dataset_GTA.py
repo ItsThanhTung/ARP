@@ -30,15 +30,8 @@ class GTADataset(Dataset):
 
         self.data = []
 
-        with open(self.file_path, 'rt') as f:
-            for line in f:
-                # rgb_path, label_path, position, albedo_path, normal_path, depth_path = line.strip().split(",")[0:6]
-                # self.data.append({"image" : rgb_path, "conditioning_image" :  label_path,
-                #                     "position" : position, "albedo" : albedo_path, \
-                #                     "normal" : normal_path, "depth" : depth_path})
-                rgb_path, label_path, position = line.strip().split(",")[0:3]
-                self.data.append({"image" : rgb_path, "conditioning_image" :  label_path,
-                                    "position" : position})
+        with open(self.file_path) as json_data:
+            self.data = json.load(json_data)
     
     def __len__(self):
         return len(self.data)
@@ -46,12 +39,10 @@ class GTADataset(Dataset):
     def __getitem__(self, idx):
         try:
             item = self.data[idx]
-            img_file = item["image"]
-            label_file = item["conditioning_image"]
-            position = item["position"]
+            latent_path = item["latent"]
+            label_file = item["seg_path"]
+            position = item["view"]
             
-            latent_path = os.path.join(os.path.dirname(img_file).replace("train", "train_latent_1.5"), \
-                                    os.path.basename(img_file)[:-4] + f"_{position}" + ".npy")
             latents = torch.from_numpy(np.load(latent_path))
 
             label_map = np.load(label_file)
@@ -110,11 +101,11 @@ class TestDataset(Dataset):
         position = item["position"]
 
         label_map = np.load(label_file)
-        label_map = np.array(Image.fromarray(label_map).resize((1024, 640), Image.Resampling.NEAREST))
+        label_map = np.array(Image.fromarray(label_map).resize((640, 400), Image.Resampling.NEAREST))
         label_image = torch.tensor(map_label2RGB(label_map).astype(np.uint8)).permute(2, 0, 1)
         new_texts = get_class_stacks(label_map)
 
-        caption = f"A fisheye image at {position}, contains {new_texts}"
+        caption = f"A photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}"
         # get label statistics for cropped image
         label_stats = get_label_stats(label_map)
 
