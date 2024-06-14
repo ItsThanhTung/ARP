@@ -70,12 +70,10 @@ def generate_blip2_captions(
         out = model.generate(**inputs)
         prompt = processor.decode(out[0], skip_special_tokens=True).strip()
 
-        raw_image[0].save("test.png")
-
         new_data = data
         prompt_data = {"weather" : weather_prompt, "prompt" : prompt}
         print(prompt_data)
-        new_data.update(prompt_data)
+        new_data.append(prompt_data)
     
     with open(output_file, 'w') as f:
         json.dump(new_data, f)
