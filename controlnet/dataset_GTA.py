@@ -28,45 +28,72 @@ class GTADataset(Dataset):
             ]
         )
 
+        self.image_transforms = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize([0.5], [0.5]),
+            ]
+        )
+        
+        pos_dict = {"image_1" : "front", "image_3" : "right", "image_2" : "left" }
         self.data = []
+        images_dir = os.path.join(self.file_path, "images")
+        segments_dir = os.path.join(self.file_path, "segments_fixed")
+        for path in os.listdir(images_dir):
+            image_path = os.path.join(images_dir, path)
+            segment_path = os.path.join(segments_dir, path.split(".")[0] + ".npy")
 
-        with open(self.file_path) as json_data:
-            self.data = json.load(json_data)
+            assert os.path.isfile(image_path), f"cannot find image file {image_path}"
+            assert os.path.isfile(segment_path), f"cannot find segment file {segment_path}"
+
+
+            for key in pos_dict.keys():
+                if key in path:
+                    view = pos_dict[key]
+                    break
+
+            self.data.append({"img_path" : image_path, "seg_path" : segment_path, "view" : view})
+
+        # self.image_paths = [os.path.join(images_dir, path) for path in os.listdir(images_dir)]
+
+        # with open(self.file_path) as json_data:
+        #     self.data = json.load(json_data)
     
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        try:
-            item = self.data[idx]
-            latent_path = item["latent"]
-            label_file = item["seg_path"]
-            position = item["view"]
-            
-            latents = torch.from_numpy(np.load(latent_path))
-
-            label_map = np.load(label_file)
-            label_map = np.array(Image.fromarray(label_map).resize((640, 400), Image.Resampling.NEAREST))
-            new_texts = get_class_stacks(label_map)
-
-            caption = f"A photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}"
-            # get label statistics for cropped image
-            label_stats = get_label_stats(label_map)
-
-            # process cropped image label into one-hot encoding
-            condition_img = make_one_hot(label_map)
-            condition_img = self.conditioning_img_transforms(condition_img)
+        item = self.data[idx]
+        latent_path = item["img_path"]
+        label_file = item["seg_path"]
+        position = item["view"]
         
-            inputs = self.tokenizer(
-                caption, max_length=self.tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt"
-            )
-            input_ids = inputs.input_ids[0]
-            
-        except:
-            return self.__getitem__(0)
+        instance_image = Image.open(latent_path)
+        if not instance_image.mode == "RGB":
+            instance_image = instance_image.convert("RGB")
+
+        instance_image = instance_image.resize((640, 400), Image.BILINEAR)
+        instance_image = self.image_transforms(instance_image) # 480 640
+
+        label_map = np.load(label_file)
+        label_map = np.array(Image.fromarray(label_map).resize((640, 400), Image.Resampling.NEAREST))
+        new_texts = get_class_stacks(label_map)
+
+        caption = f"A photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}"
+        # get label statistics for cropped image
+        label_stats = get_label_stats(label_map)
+
+        # process cropped image label into one-hot encoding
+        condition_img = make_one_hot(label_map)
+        condition_img = self.conditioning_img_transforms(condition_img)
+    
+        inputs = self.tokenizer(
+            caption, max_length=self.tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt"
+        )
+        input_ids = inputs.input_ids[0]
 
 
-        return dict(pixel_values=latents, 
+        return dict(pixel_values=instance_image, 
                     conditioning_pixel_values=condition_img, 
                     input_ids=input_ids,
                     label_stats=label_stats)

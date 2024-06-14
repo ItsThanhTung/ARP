@@ -99,9 +99,23 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step):
     else:
         generator = torch.Generator(device=accelerator.device).manual_seed(args.seed)
 
+    pos_dict = {"rear" : "rear", "front" : "front", "right" : "right", "left" : "left" }
+    validation_images = []
+    images_dir = os.path.join(args.validate_file, "images")
+    segments_dir = os.path.join(args.validate_file, "segments_fixed")
+    for path in os.listdir(images_dir):
+        image_path = os.path.join(images_dir, path)
+        segment_path = os.path.join(segments_dir, path + ".npy")
 
-    with open(args.validate_file) as json_data:
-        validation_images = json.load(json_data)
+        if not os.path.isfile(segment_path):
+            continue
+
+        for key in pos_dict.keys():
+            if key in path:
+                view = pos_dict[key]
+                break
+
+        validation_images.append({"img_path" : image_path, "seg_path" : segment_path, "view" : view})
 
     validation_images = random.sample(validation_images, 1)
 
@@ -151,7 +165,9 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step):
 
                 for image in images:
                     formatted_images.append(np.asarray(image))
-
+                for image in images:
+                    formatted_images.append((np.asarray(image) * 0.5 + np.asarray(validation_image) * 0.5).astype(np.uint8))
+            
                 formatted_images = np.stack(formatted_images)
 
                 tracker.writer.add_images(validation_prompt, formatted_images, step, dataformats="NHWC")
@@ -940,7 +956,7 @@ def main(args):
                 class_pixels_stats = combine_dicts([class_pixels_stats, batch["label_stats"]])
 
                 # Convert images to latent space
-                latents = batch["pixel_values"].to(dtype=weight_dtype)
+                latents = vae.encode(batch["pixel_values"].to(dtype=weight_dtype)).latent_dist.sample()
                 latents = latents * vae.config.scaling_factor
 
                 # Sample noise that we'll add to the latents

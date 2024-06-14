@@ -14,8 +14,8 @@ CUDA_VISIBLE_DEVICES=$GPU_STRING torchrun --nnodes 1 --nproc_per_node $GPU_COUNT
                                     -m controlnet.train \
                                     --pretrained_model_name_or_path=$PRETRAINED_PATH \
                                     --controlnet_model_name_or_path=$CONTROLNET_PATH \
-                                    --dataset_file=$DATA_DIR/train_fix_latent.json \
-                                    --output_dir="exp_controlnet_24k_data_1.5_continue" \
+                                    --dataset_file=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/sim2realARP/real \
+                                    --output_dir="exp_6k" \
                                     --resolution=512 \
                                     --train_batch_size=8 \
                                     --num_train_epochs=250 \
@@ -30,7 +30,7 @@ CUDA_VISIBLE_DEVICES=$GPU_STRING torchrun --nnodes 1 --nproc_per_node $GPU_COUNT
                                     --dataloader_num_workers=16 \
                                     --allow_tf32 \
                                     --report_to=tensorboard \
-                                    --validate_file=$DATA_DIR/train_fix_latent.json \
+                                    --validate_file=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/sim2realARP/synthetic \
                                     --validation_steps=100 \
                                     --mixed_precision=no \
                                     --tracker_project_name="train_controlnet" \
