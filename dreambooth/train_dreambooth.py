@@ -693,7 +693,7 @@ class DreamBoothDataset(Dataset):
                 # instance_prompt = ""
 
             text_inputs = tokenize_prompt(
-                self.tokenizer, self.instance_prompt, tokenizer_max_length=self.tokenizer_max_length
+                self.tokenizer, instance_prompt, tokenizer_max_length=self.tokenizer_max_length
             )
             example["instance_prompt_ids"] = text_inputs.input_ids
             example["instance_attention_mask"] = text_inputs.attention_mask
