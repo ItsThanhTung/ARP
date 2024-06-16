@@ -643,10 +643,27 @@ class DreamBoothDataset(Dataset):
             raise ValueError(f"Instance {self.instance_data_root} images root doesn't exists.")
 
         # self.instance_images_path = [os.path.join(self.instance_data_root, path) for path in os.listdir(self.instance_data_root)]
-        with open(self.instance_data_root) as json_data:
-            self.instance_images_path = json.load(json_data)
+        pos_dict = {"image_1" : "front", "image_3" : "right", "image_2" : "left" }
+        self.data = []
+        images_dir = os.path.join(self.instance_data_root, "images")
+        segments_dir = os.path.join(self.instance_data_root, "segments_fixed")
+        for path in os.listdir(images_dir):
+            image_path = os.path.join(images_dir, path)
+            segment_path = os.path.join(segments_dir, path.split(".")[0] + ".npy")
 
-        self.num_instance_images = len(self.instance_images_path)
+            assert os.path.isfile(image_path), f"cannot find image file {image_path}"
+            assert os.path.isfile(segment_path), f"cannot find segment file {segment_path}"
+
+
+            for key in pos_dict.keys():
+                if key in path:
+                    view = pos_dict[key]
+                    break
+
+            self.data.append({"img_path" : image_path, "seg_path" : segment_path, "view" : view})
+        
+
+        self.num_instance_images = len(self.data)
         self.instance_prompt = instance_prompt
         self._length = self.num_instance_images
 
@@ -665,8 +682,6 @@ class DreamBoothDataset(Dataset):
 
         self.image_transforms = transforms.Compose(
             [
-                transforms.Resize(size, interpolation=transforms.InterpolationMode.BILINEAR),
-                transforms.CenterCrop(size) if center_crop else transforms.RandomCrop(size),
                 transforms.ToTensor(),
                 transforms.Normalize([0.5], [0.5]),
             ]
@@ -677,12 +692,17 @@ class DreamBoothDataset(Dataset):
 
     def __getitem__(self, index):
         example = {}
-        image_path = self.instance_images_path[index % self.num_instance_images]
+        data = self.data[index % self.num_instance_images]
 
-        instance_latents = np.load(image_path["latent"])
-        example["instance_images"] = torch.from_numpy(instance_latents)
+        instance_image = Image.open(data["img_path"])
+        if not instance_image.mode == "RGB":
+            instance_image = instance_image.convert("RGB")
+        
+        instance_image = instance_image.resize((640, 400), Image.BILINEAR)
+        instance_image = self.image_transforms(instance_image) # 480 640
+        example["instance_images"] = instance_image
 
-        position = image_path["view"] 
+        position = data["view"] 
 
         if self.encoder_hidden_states is not None:
             example["instance_prompt_ids"] = self.encoder_hidden_states
@@ -693,7 +713,7 @@ class DreamBoothDataset(Dataset):
                 # instance_prompt = ""
 
             text_inputs = tokenize_prompt(
-                self.tokenizer, self.instance_prompt, tokenizer_max_length=self.tokenizer_max_length
+                self.tokenizer, instance_prompt, tokenizer_max_length=self.tokenizer_max_length
             )
             example["instance_prompt_ids"] = text_inputs.input_ids
             example["instance_attention_mask"] = text_inputs.attention_mask
@@ -1254,12 +1274,13 @@ def main(args):
         for step, batch in enumerate(train_dataloader):
             with accelerator.accumulate(unet):
                 pixel_values = batch["pixel_values"].to(dtype=weight_dtype)
-
                 if vae is not None:
                     # Convert images to latent space
-                    model_input = pixel_values * vae.config.scaling_factor
+                    model_input = vae.encode(batch["pixel_values"].to(dtype=weight_dtype)).latent_dist.sample()
+                    model_input = model_input * vae.config.scaling_factor
                 else:
                     model_input = pixel_values
+
 
                 # Sample noise that we'll add to the model input
                 if args.offset_noise:

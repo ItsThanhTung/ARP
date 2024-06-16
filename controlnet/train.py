@@ -74,7 +74,7 @@ def save_dict(dict, save_path):
         json.dump(dict, f)
 
 
-def log_validation(controlnet, args, accelerator, weight_dtype, step):
+def log_validation(controlnet, args, validate_file, accelerator, weight_dtype, step):
     logger.info("Running swap validation... ")
 
     controlnet = accelerator.unwrap_model(controlnet)
@@ -99,13 +99,16 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step):
     else:
         generator = torch.Generator(device=accelerator.device).manual_seed(args.seed)
 
-    pos_dict = {"rear" : "rear", "front" : "front", "right" : "right", "left" : "left" }
+    pos_dict = {"rear" : "rear", "front" : "front", "right" : "right", "left" : "left", "image_1" : "front", "image_3" : "right", "image_2" : "left"}
     validation_images = []
-    images_dir = os.path.join(args.validate_file, "images")
-    segments_dir = os.path.join(args.validate_file, "segments_fixed")
+    images_dir = os.path.join(validate_file, "images")
+    segments_dir = os.path.join(validate_file, "segments_fixed")
     for path in os.listdir(images_dir):
         image_path = os.path.join(images_dir, path)
-        segment_path = os.path.join(segments_dir, path + ".npy")
+        if validate_file.split("/")[-1] == "real":
+            segment_path = os.path.join(segments_dir, path.split(".")[0] + ".npy")
+        else:
+            segment_path = os.path.join(segments_dir, path + ".npy")
 
         if not os.path.isfile(segment_path):
             continue
@@ -170,7 +173,7 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step):
             
                 formatted_images = np.stack(formatted_images)
 
-                tracker.writer.add_images(validation_prompt, formatted_images, step, dataformats="NHWC")
+                tracker.writer.add_images(validate_file.split("/")[-1] + "_" + validation_prompt, formatted_images, step, dataformats="NHWC")
         elif tracker.name == "wandb":
             formatted_images = []
 
@@ -1031,6 +1034,15 @@ def main(args):
                         log_validation(
                             controlnet,
                             args,
+                            os.path.join(args.validate_file, "real"),
+                            accelerator,
+                            weight_dtype,
+                            global_step,
+                        )
+                        log_validation(
+                            controlnet,
+                            args,
+                            os.path.join(args.validate_file, "synthetic"),
                             accelerator,
                             weight_dtype,
                             global_step,
