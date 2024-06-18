@@ -243,7 +243,7 @@ def main(args):
         for idx in range(args.num_samples):
             for pos in POSITION:
                 prompt = f"A photo taken by a fisheye camera mounted on the {pos} of a car"
-                image = pipeline(prompt, width=640, height=400, guidance_scale=3.0, num_inference_steps=25).images[0]
+                image = pipeline(prompt, width=640, height=400, guidance_scale=2.0, num_inference_steps=50).images[0]
                 image.save(os.path.join(args.output_dir, "{}_rank-{}_{:06}.png".format(pos, rank, idx)))
 
             progress_bar.update(1)

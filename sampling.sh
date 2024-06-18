@@ -2,7 +2,7 @@ export CODE_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/code
 export DATA_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data
 # export PRETRAINED_PATH=exp_real_data_1.5_prompt/model-80000
 # export PRETRAINED_PATH=runwayml/stable-diffusion-v1-5
-export PRETRAINED_PATH=exp_24k_data_1.5/model-35000
+export PRETRAINED_PATH=exp_debug/model-152000
 export OUT_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/sampling_data/test_24k
 
 GPU_STRING=$1
