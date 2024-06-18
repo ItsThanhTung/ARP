@@ -13,6 +13,7 @@ CUDA_VISIBLE_DEVICES=$GPU_STRING torchrun --nnodes 1 --nproc_per_node $GPU_COUNT
                                     --rdzv-backend=c10d --rdzv-endpoint=localhost:0 \
                                     -m controlnet.train \
                                     --pretrained_model_name_or_path=$PRETRAINED_PATH \
+                                    --controlnet_model_name_or_path=$CONTROLNET_PATH \
                                     --dataset_file=$DATA_DIR/train_fix_latent.json \
                                     --output_dir="exp_24k_controlnet_only" \
                                     --resolution=512 \
