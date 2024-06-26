@@ -157,24 +157,14 @@ class DreamBoothDataset(Dataset):
         example = {}
         data_item = self.data[index % self.num_instance_images]
 
-        example["image_path"] = str(data_item["id"]) + "_"  + data_item["tag"] + "_" + os.path.basename(data_item["img_path"])
-        example["mask_path"] = data_item["mask"]
+        example["image_path"] = data_item["tag"].replace(".", "_") + "_" + str(data_item["id"]) + "_" + os.path.basename(data_item["img_path"])
         instance_image = Image.open(data_item["img_path"])
-        # try:
-        #     image = (np.array(Image.open(data_item["image"]))[:, :, :3] / 255.0) * 2 -1
-        #     mask = np.array(Image.open(data_item["mask"])) / 255.0
-        #     instance_image = np.array(((image * mask) * 0.5 + 0.5) * 255.0, dtype=np.uint8)
-        #     instance_image = Image.fromarray(instance_image)
-        # except:
-        #     return self.__getitem__(0)
 
         if not instance_image.mode == "RGB":
             instance_image = instance_image.convert("RGB")
         
         instance_image = instance_image.resize((640, 400), Image.BILINEAR)
         example["instance_images"] = self.image_transforms(instance_image) # 480 640
-        # Image.fromarray(((example["instance_images"] * 0.5 + 0.5).permute(1, 2, 0).numpy() * 255.0).astype(np.uint8)).save("/lustre/scratch/client/vinai/users/tungdt33/ARP/data/test_data.png")
-        # breakpoint()
         return example
 
 

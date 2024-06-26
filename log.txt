@@ -1,0 +1,30 @@
+start calculating
+compute FID of a folder with 24K_REAL statistics
+Found 6742 images in the folder /lustre/scratch/client/vinai/users/tungdt33/ARP/sampling_data/test_real/images
+42.9739990961977
+start calculating
+compute FID of a folder with 24K_REAL statistics
+Found 6742 images in the folder /lustre/scratch/client/vinai/users/tungdt33/ARP/sampling_data/test_synthetic/images
+55.61306934457298
+start calculating
+compute FID of a folder with 24K_REAL statistics
+Found 6742 images in the folder /lustre/scratch/client/vinai/users/tungdt33/ARP/sampling_data/test_synthetic/images
+49.332558080094884
+
+
+start calculating
+compute FID of a folder with 24K_REAL statistics
+Found 6742 images in the folder /lustre/scratch/client/vinai/users/tungdt33/ARP/sampling_data/test_real/images
+41.24432491832971
+start calculating
+compute FID of a folder with 24K_REAL statistics
+Found 6162 images in the folder /lustre/scratch/client/vinai/users/tungdt33/ARP/sampling_data/test_real_real/images
+19.464848418195572
+start calculating
+compute FID of a folder with 24K_REAL statistics
+Found 4796 images in the folder /lustre/scratch/client/vinai/users/tungdt33/ARP/sampling_data/exp_real_real/images
+19.80156232574018
+start calculating
+compute FID of a folder with 24K_REAL statistics
+Found 5080 images in the folder /lustre/scratch/client/vinai/users/tungdt33/ARP/sampling_data/exp_real_20K_synthetic_no_none_semantic_latent_data_real/images
+28.60818843434413

@@ -18,13 +18,10 @@ def test_mask(str_data):
     breakpoint()
 
 TOTAL_IMAGES=0
-OUT_TXT_DIR="/lustre/scratch/client/vinai/users/tungdt33/ARP/data"
-TRAIN_TXT_PATH=ospj(OUT_TXT_DIR, "real_train_data.json")
-TEST_TXT_PATH=ospj(OUT_TXT_DIR, "real_test_data.json")
+OUT_TXT_DIR="/lustre/scratch/client/vinai/users/tungdt33/ARP/data/DATA_ARP"
+JSON_PATH=ospj(OUT_TXT_DIR, "real_data.json")
 
 ALL_DATA = []
-TRAIN_DATA = []
-TEST_DATA = []
 
 
 DATE_DIR="/lustre/scratch/client/vinai/users/tungdt33/ARP/data/inhouse/segment/rgb/2022-08-10"
@@ -61,6 +58,7 @@ for subset in os.listdir(DATE_DIR):
                     "img_path" : image_path,
                     "mask" : MASK_DICT[mask_idx],
                     "view" : MASK_POS_DICT[mask_idx],
+                    "type" : "real",
                    }
 
         ALL_DATA.append(str_data)
@@ -100,9 +98,10 @@ for subset in os.listdir(DATE_DIR):
                     "img_path" : image_path,
                     "mask" : MASK_DICT[mask_idx],
                     "view" : MASK_POS_DICT[mask_idx],
+                    "type" : "real",
                     }
 
-        TRAIN_DATA.append(str_data)    # FOR TOGG dataset, we only use for training
+        ALL_DATA.append(str_data)    # FOR TOGG dataset, we only use for training
 
 
 
@@ -159,6 +158,7 @@ for subset in os.listdir(DATE_DIR):
                     "img_path" : image_path,
                     "mask" : MASK_DICT[mask_idx],
                     "view" : MASK_POS_DICT[mask_idx],
+                    "type" : "real",
                     }
         ALL_DATA.append(str_data)
 
@@ -205,6 +205,7 @@ for date_dir in DATE_DIR:
                     "img_path" : image_path,
                     "mask" : MASK_DICT[mask_idx],
                     "view" : MASK_POS_DICT[mask_idx],
+                    "type" : "real",
                     }
 
             ALL_DATA.append(str_data)
@@ -240,9 +241,10 @@ for image_name in os.listdir(data_dir):
                 "img_path" : image_path,
                 "mask" : MASK_DICT[mask_idx],
                 "view" : MASK_POS_DICT[mask_idx],
+                "type" : "real",
                 }
 
-    TRAIN_DATA.append(str_data)
+    ALL_DATA.append(str_data)
 
 
 data_dir = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/woodscape/rgb_alltraintest"
@@ -278,27 +280,19 @@ for image_name in os.listdir(data_dir):
                 "img_path" : image_path,
                 "mask" : MASK_DICT[mask_idx],
                 "view" : MASK_POS_DICT[mask_idx],
+                "type" : "real",
                 }
 
-    TRAIN_DATA.append(str_data)
+    ALL_DATA.append(str_data)
+
+for idx in range(len(ALL_DATA)):
+    ALL_DATA[idx].update({"id" : idx})
+# add idx
+
+print(f"ALL data size: {len(ALL_DATA)}")
 
 
+with open(JSON_PATH, '+w') as f:
+    json.dump(ALL_DATA, f)
 
-from sklearn.model_selection import train_test_split
-
-# Split the data into 80% training and 20% testing
-train_data, test_data = train_test_split(ALL_DATA, test_size=0.2, random_state=42)
-
-TRAIN_DATA += train_data
-TEST_DATA = test_data
-
-print(f"ALL training data size: {len(TRAIN_DATA)}")
-print(f"ALL testing data size: {len(TEST_DATA)}")
-
-
-with open(TRAIN_TXT_PATH, '+w') as f:
-    json.dump(TRAIN_DATA, f)
-
-with open(TEST_TXT_PATH, '+w') as f:
-    json.dump(TEST_DATA, f)
 

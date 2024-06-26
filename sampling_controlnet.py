@@ -278,7 +278,9 @@ def main(args):
             label_images = batch["label_images"][0].permute(1, 2, 0).cpu().numpy()
 
             for i in range(args.num_samples):
-                image = pipeline(prompt[0], controlnet_image, width=640, height=400, guidance_scale=2.5, num_inference_steps=25).images[0]
+                image = pipeline(prompt[0], controlnet_image, \
+                                width=640, height=400, guidance_scale=4.0, num_inference_steps=30).images[0]
+
                 image.save(os.path.join(image_dir, "{:06}_{}.png".format(idx, i)))
 
                 image = (np.array(image) * 0.5 + label_images * 0.5).astype(np.uint8)

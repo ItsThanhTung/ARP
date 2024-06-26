@@ -2,27 +2,25 @@ import os
 import numpy as np 
 from PIL import Image
 from tqdm import tqdm
+import json
+
 
 image_dir = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/inhouse/segment/rgb"
 annotation_dir = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/inhouse/segment/annotation/cvat_processed_3_classes"
 
-TRAIN_DIR = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/MASKED_REAL/train"
-TEST_DIR = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/MASKED_REAL/test"
 
-TRAIN_TXT_PATH = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/real_train_data.txt"
+JSON_PATH = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/DATA_ARP/real_latent_data.json"
+NEW_JSON_PATH  = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/DATA_ARP/real_semantic_latent_data.json"
 
-TRAIN_DATA_POS = {}
-with open(TRAIN_TXT_PATH, 'rt') as f:
-    for line in f:
-        rgb_path, label_path, position = line.strip().split(",")[0:3]
-        TRAIN_DATA_POS[rgb_path] = position
+TRAIN_DATA_DICT = {}
+with open(JSON_PATH) as json_data:
+    TRAIN_DATA = json.load(json_data)
 
-TEST_TXT_PATH = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/real_test_data.txt"
-TEST_DATA_POS = {}
-with open(TEST_TXT_PATH, 'rt') as f:
-    for line in f:
-        rgb_path, label_path, position = line.strip().split(",")[0:3]
-        TEST_DATA_POS[rgb_path] = position
+
+for data in TRAIN_DATA:
+    rgb_path = data["img_path"] 
+    TRAIN_DATA_DICT[rgb_path] = {"semantic_path" : ""}
+
 
 mapping_folder = {"2022-08-10-15-18-13" : "2022-08-10/2022-08-10-15-18-13",
                 "2022-08-10-15-19-15" : "2022-08-10/2022-08-10-15-19-15",
@@ -52,10 +50,7 @@ mapping_folder = {"2022-08-10-15-18-13" : "2022-08-10/2022-08-10-15-18-13",
 
                 "vinai_ddsbag_OGM_Sidewalk_Green_Grass" : "2024-01-15/vinai_ddsbag_OGM_Sidewalk_Green_Grass"}
 
-
-train_paths = []
-test_paths = []
-
+count = 0
 for anno_name, image_name in mapping_folder.items():
     image_folder = os.path.join(image_dir, image_name)
     annotation_folder = os.path.join(annotation_dir, anno_name)
@@ -72,25 +67,10 @@ for anno_name, image_name in mapping_folder.items():
 
         assert os.path.isfile(image_path), f"something was wrong at, cant find {image_path}"
 
-        masked_image_name = "_".join(image_path.split("/")[-3:])
-
-        data = {"label" : annotation_path}
-        
-        if os.path.isfile(os.path.join(TRAIN_DIR, masked_image_name)):
-            data["rgb"] = os.path.join(TRAIN_DIR, masked_image_name)
-            position = TRAIN_DATA_POS[image_path]
-            train_paths.append(data)
-
-        elif os.path.isfile(os.path.join(TEST_DIR, masked_image_name)):
-            data["rgb"] = os.path.join(TEST_DIR, masked_image_name)
-            position = TEST_DATA_POS[image_path]
-            test_paths.append(data)
-
-        else:
-            raise Exception("should not be here")
-        
-        data["position"] = position
-
+        assert image_path in TRAIN_DATA_DICT
+        TRAIN_DATA_DICT[image_path] = {"semantic_path" : annotation_path}
+        count += 1
+      
 
 mapping_folder = {"/lustre/scratch/client/vinai/users/tungdt33/ARP/data/woodscape/semantic_annotations/processed_3_classes/2022-29-11-8234" : \
                     "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/woodscape/rgb_alltraintest",
@@ -110,39 +90,19 @@ for annotation_folder, image_folder in mapping_folder.items():
 
         assert os.path.isfile(image_path), f"something was wrong at, cant find {image_path}"
 
-        masked_image_name = "_".join(image_path.split("/")[-3:])
+        assert image_path in TRAIN_DATA_DICT
+        TRAIN_DATA_DICT[image_path] = {"semantic_path" : annotation_path}
+        count += 1
 
-        data = {"label" : annotation_path}
-        
-        if os.path.isfile(os.path.join(TRAIN_DIR, masked_image_name)):
-            data["rgb"] = os.path.join(TRAIN_DIR, masked_image_name)
-            position = TRAIN_DATA_POS[image_path]
-            train_paths.append(data)
+print(f"Num semantic file: {count}")
 
-        elif os.path.isfile(os.path.join(TEST_DIR, masked_image_name)):
-            data["rgb"] = os.path.join(TEST_DIR, masked_image_name)
-            position = TEST_DATA_POS[image_path]
-            test_paths.append(data)
 
-        else:
-            raise Exception("should not be here")
-        
-        data["position"] = position
+NEW_TRAIN_DATA = []
+for data in TRAIN_DATA:
+    rgb_path = data["img_path"]
+    data.update(TRAIN_DATA_DICT[rgb_path])
+    NEW_TRAIN_DATA.append(data)
 
-print(f"ALL training data size: {len(train_paths)}")
-print(f"ALL testing data size: {len(test_paths)}")
 
-OUT_TXT_DIR="/lustre/scratch/client/vinai/users/tungdt33/ARP/data"
-TRAIN_TXT_PATH=os.path.join(OUT_TXT_DIR, "real_train_semantic_data.txt")
-TEST_TXT_PATH=os.path.join(OUT_TXT_DIR, "real_test_semantic_data.txt")
-
-wf = open(TRAIN_TXT_PATH, "+w")
-for data in train_paths:
-    wf.write(data["rgb"] + "," + data["label"] + "," + data["position"] + "\n")
-
-wf.close()
-
-wf = open(TEST_TXT_PATH, "+w")
-for data in test_paths:
-    wf.write(data["rgb"] + "," + data["label"] + "," + data["position"] + "\n")
-wf.close()
+with open(NEW_JSON_PATH, '+w') as f:
+    json.dump(NEW_TRAIN_DATA, f)

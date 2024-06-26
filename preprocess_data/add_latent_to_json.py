@@ -47,7 +47,7 @@ def main(args):
         all_data = json.load(json_data)
 
     for data in tqdm(all_data):
-        image_path = str(data["id"]) + "_"  + data["tag"] + "_" + os.path.basename(data["img_path"])
+        image_path = data["tag"].replace(".", "_") + "_" + str(data["id"]) + "_" + os.path.basename(data["img_path"])
         save_path = image_path.split(".")[0] + ".npy"
         save_path = os.path.join(args.output_dir, save_path)
 
@@ -56,8 +56,6 @@ def main(args):
             new_data.append(data)
         else:
             print(f"Missing latent file at {save_path}")
-            data["latent"] = "save_path"
-            new_data.append(data)
 
     with open(args.output_path, '+w') as f:
         json.dump(new_data, f)

@@ -109,15 +109,34 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step):
     for i in range(len(validation_images)):
         item = validation_images[i]
         img_file = item["img_path"]
-        label_file = item["seg_path"]
+        label_file = item["semantic_path"]
         position = item["view"]
+        img_type = item["type"]
         
-        rgb_image = Image.open(img_file).resize((640, 400), Image.Resampling.LANCZOS)
-        label_map = np.load(label_file)
-        label_map = np.array(Image.fromarray(label_map).resize((640, 400), Image.Resampling.NEAREST))
-        new_texts = get_class_stacks(label_map)
+        rgb_image = Image.open(img_file)
+        if not rgb_image.mode == "RGB":
+            rgb_image = rgb_image.convert("RGB")
+        rgb_image = rgb_image.resize((640, 400), Image.Resampling.LANCZOS)
 
-        val_prompt = f"A photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}" 
+        if args.joint_type and np.random.rand() < 0.5:
+            # swap image type
+            if img_type == "real":
+                img_type = "synthetic"
+            else:
+                img_type = "real"
+        # else:
+        #     if img_type == "synthetic":
+        #         if np.random.rand() < 0.1:
+        #             label_file = ""
+
+        if label_file == "" :
+            label_map = np.zeros((400, 640), dtype=np.uint8)
+            val_prompt = f"A {img_type} photo taken by a fisheye camera mounted on the {position} of a car."
+        else:
+            label_map = np.load(label_file)
+            label_map = np.array(Image.fromarray(label_map).resize((640, 400), Image.Resampling.NEAREST))
+            new_texts = get_class_stacks(label_map)
+            val_prompt = f"A {img_type} photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}" 
 
         # process cropped image label into one-hot encoding
         condition_tensor = torch.Tensor(make_one_hot(label_map))
@@ -143,14 +162,15 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step):
                 validation_prompt = log["validation_prompt"]
                 validation_image = log["validation_image"]
                 gt_image = log["GT"]
-
                 formatted_images = []
 
-                formatted_images.append(np.asarray(gt_image))
+                formatted_images.append(np.asarray(gt_image)[:, :, :3])
                 formatted_images.append(np.asarray(validation_image))
 
                 for image in images:
                     formatted_images.append(np.asarray(image))
+                for image in images:
+                    formatted_images.append((np.asarray(image) * 0.5 + np.asarray(validation_image) * 0.5).astype(np.uint8))
 
                 formatted_images = np.stack(formatted_images)
 
@@ -514,6 +534,11 @@ def parse_args(input_args=None):
         help="Whether or not to use rare class sampling (rcs)."
     )
     parser.add_argument(
+        "--joint_type",
+        action="store_true",
+        help="Whether or not to use real and synthetic data at the same time."
+    )
+    parser.add_argument(
         "--rcs_data_root",
         type=str,
         default=None,
@@ -582,22 +607,10 @@ def collate_fn(examples):
 
     input_ids = torch.stack([example["input_ids"] for example in examples])
     
-    combined_stats = {}
-    for example in examples:
-        stats = example["label_stats"]       
-        for key, value in stats.items():             
-            if key in combined_stats:
-                combined_stats[key] += value
-            else:
-                combined_stats[key] = value
-    
-    label_stats = combined_stats
-    
     return {
         "pixel_values": pixel_values,
         "conditioning_pixel_values": conditioning_pixel_values,
         "input_ids": input_ids,
-        "label_stats": label_stats
     }
 
 
@@ -932,12 +945,10 @@ def main(args):
         disable=not accelerator.is_local_main_process,
     )
 
-    class_pixels_stats = {}
     for epoch in range(first_epoch, args.num_train_epochs):
         for step, batch in enumerate(train_dataloader):
             with accelerator.accumulate(controlnet):
                 # Get the class pixels statitics
-                class_pixels_stats = combine_dicts([class_pixels_stats, batch["label_stats"]])
 
                 # Convert images to latent space
                 latents = batch["pixel_values"].to(dtype=weight_dtype)
@@ -1006,7 +1017,6 @@ def main(args):
                         accelerator.save_state(ckpt_save_path)
 
                         label_stats_save_path = os.path.join(args.output_dir, f"labelstats-{global_step}.json")
-                        save_dict(class_pixels_stats, label_stats_save_path)
 
                         logger.info(f"Saved state to {ckpt_save_path}")
                         logger.info(f"Saved label stats to {label_stats_save_path}")

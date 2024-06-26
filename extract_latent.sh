@@ -1,9 +1,9 @@
 export CODE_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/code/ARP
 # export PRETRAINED_PATH=stabilityai/stable-diffusion-2-1-base
 export PRETRAINED_PATH=runwayml/stable-diffusion-v1-5
-export DATA_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/train_fix.json
-export OUT_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/DATA_24K/latent_1.5
-export OUT_PATH=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/train_fix_latent.json
+export DATA_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/DATA_ARP/real_data.json
+export OUT_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/DATA_ARP/latent_real_sd_1.5
+export OUT_PATH=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/DATA_ARP/real_latent_data.json
 
 GPU_STRING=$1
 GPU_COUNT=$(echo $GPU_STRING | tr ',' '\n' | wc -l)
@@ -18,5 +18,6 @@ echo "Number of GPUs: $GPU_COUNT - First GPU: $FIRST_GPU - Available GPU: $GPU_S
 #                                         --instance_data_dir=$DATA_DIR \
 #                                         --output_dir=$OUT_DIR \
 #                                         --train_batch_size=16 \
-#                                         --dataloader_num_workers=4 \
+#                                         --dataloader_num_workers=4 
+                                        
 python preprocess_data/add_latent_to_json.py  --input_path=$DATA_DIR --output_path=$OUT_PATH --output_dir=$OUT_DIR

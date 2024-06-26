@@ -1,7 +1,9 @@
 export CODE_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/code
-export DATA_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data
+# export DATA_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/DATA_ARP/real_no_none_semantic_latent_data.json
+export DATA_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/DATA_ARP/real_semantic_latent_data.json
 export PRETRAINED_PATH=runwayml/stable-diffusion-v1-5
-export CONTROLNET_PATH=lllyasviel/control_v11p_sd15_seg
+# export CONTROLNET_PATH=lllyasviel/control_v11p_sd15_seg
+export CONTROLNET_PATH=/lustre/scratch/client/vinai/users/tungdt33/ARP/code/ARP/exp_real/checkpoint-36000/controlnet
 
 
 GPU_STRING=$1
@@ -14,8 +16,8 @@ CUDA_VISIBLE_DEVICES=$GPU_STRING torchrun --nnodes 1 --nproc_per_node $GPU_COUNT
                                     -m controlnet.train \
                                     --pretrained_model_name_or_path=$PRETRAINED_PATH \
                                     --controlnet_model_name_or_path=$CONTROLNET_PATH \
-                                    --dataset_file=$DATA_DIR/train_fix_latent.json \
-                                    --output_dir="exp_24k_controlnet_only" \
+                                    --dataset_file=$DATA_DIR \
+                                    --output_dir="exp_real_continue" \
                                     --resolution=512 \
                                     --train_batch_size=8 \
                                     --num_train_epochs=250 \
@@ -30,8 +32,9 @@ CUDA_VISIBLE_DEVICES=$GPU_STRING torchrun --nnodes 1 --nproc_per_node $GPU_COUNT
                                     --dataloader_num_workers=16 \
                                     --allow_tf32 \
                                     --report_to=tensorboard \
-                                    --validate_file=$DATA_DIR/train_fix_latent.json \
-                                    --validation_steps=100 \
+                                    --validate_file=$DATA_DIR \
+                                    --validation_steps=500 \
                                     --mixed_precision=no \
                                     --tracker_project_name="train_controlnet" \
                                     --enable_xformers_memory_efficient_attention \
+                                    # --joint_type 
