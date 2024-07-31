@@ -11,6 +11,7 @@ def calculate_fid(data_root: str):
     print(score)
 
 if __name__ == "__main__":
-    tyro.cli(calculate_fid)
-
-
+    # tyro.cli(calculate_fid)
+    score = fid.compute_fid("/lustre/scratch/client/vinai/users/tungdt33/ARP/test_fid/real_2", \
+                            "/lustre/scratch/client/vinai/users/tungdt33/ARP/test_fid/real_3")
+    print(score)

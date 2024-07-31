@@ -27,6 +27,12 @@ class GTADataset(Dataset):
                 transforms.ToTensor(),
             ]
         )
+        self.image_transforms = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize([0.5], [0.5]),
+            ]
+        )
 
         self.data = []
 
@@ -38,25 +44,32 @@ class GTADataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.data[idx]
-        latent_path = item["latent"]
-        label_file = item["semantic_path"]
+        img_file = item["img_path"]
+        rgb_image = Image.open(img_file)
+        if not rgb_image.mode == "RGB":
+            rgb_image = rgb_image.convert("RGB")
+        rgb_image = rgb_image.resize((512, 512), Image.Resampling.LANCZOS)
+        instance_images = self.image_transforms(rgb_image) # 480 640
+
+        # latent_path = item["latent"]
+        label_file = item["seg_path"]
         position = item["view"]
-        img_type = item["type"]
+        # img_type = item["type"]
+        mask_path = item["mask"]
 
-        latents = torch.from_numpy(np.load(latent_path))
+        mask_img = Image.open(mask_path).resize((512, 512), Image.Resampling.NEAREST)
+        mask_img = (np.array(mask_img)[:, :, 0]).astype(np.uint8)
 
-        # if img_type == "synthetic":
-        #     if np.random.rand() < 0.1:
-        #         label_file = ""
+        # latents = torch.from_numpy(np.load(latent_path))
 
-        if label_file == "" :
-            label_map = np.zeros((400, 640), dtype=np.uint8)
-            caption = f"A {img_type} photo taken by a fisheye camera mounted on the {position} of a car."
-        else:
-            label_map = np.load(label_file)
-            label_map = np.array(Image.fromarray(label_map).resize((640, 400), Image.Resampling.NEAREST))
-            new_texts = get_class_stacks(label_map)
-            caption = f"A {img_type} photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}"
+        label_map = np.load(label_file)
+        label_map = np.array(Image.fromarray(label_map).resize((512, 512), Image.Resampling.NEAREST))
+
+        label_map = np.where(mask_img == 0, 7, label_map)
+
+
+        new_texts = get_class_stacks(label_map)
+        caption = f"A photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}"
 
         # process cropped image label into one-hot encoding
         condition_img = make_one_hot(label_map)
@@ -67,7 +80,7 @@ class GTADataset(Dataset):
         )
         input_ids = inputs.input_ids[0]
     
-        return dict(pixel_values=latents, 
+        return dict(pixel_values=instance_images, 
                     conditioning_pixel_values=condition_img, 
                     input_ids=input_ids)
 
@@ -81,6 +94,13 @@ class TestDataset(Dataset):
         self.conditioning_img_transforms = transforms.Compose(
             [
                 transforms.ToTensor(),
+            ]
+        )
+
+        self.image_transforms = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize([0.5], [0.5]),
             ]
         )
 
@@ -132,20 +152,33 @@ class TestDataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.data[idx]
-        label_file = item["semantic_path"]
+        label_file = item["seg_path"]
         position = item["view"]
+        mask_path = item["mask"]
 
-        masks = self.real_mask[position]
-        mask = random.choice(masks)         
+        img_file = item["img_path"]
+        rgb_image = Image.open(img_file)
+        if not rgb_image.mode == "RGB":
+            rgb_image = rgb_image.convert("RGB")
+        rgb_image = rgb_image.resize((512, 512), Image.Resampling.LANCZOS)
+        instance_images = self.image_transforms(rgb_image) # 480 640
+
+        mask_img = Image.open(mask_path).resize((512, 512), Image.Resampling.NEAREST)
+        mask_img = (np.array(mask_img)[:, :, 0]).astype(np.uint8)
+
+        mask_tensor = torch.from_numpy(mask_img).unsqueeze(-1)
+        # masks = self.real_mask[position]
+        # mask = random.choice(masks)         
 
         label_map = np.load(label_file)
-        label_map = np.array(Image.fromarray(label_map).resize((640, 400), Image.Resampling.NEAREST))
+        label_map = np.array(Image.fromarray(label_map).resize((512, 512), Image.Resampling.NEAREST))
+        label_map = np.where(mask_img == 0, 7, label_map)
         # label_map = (label_map * mask).astype(np.uint8)
 
         label_image = torch.tensor(map_label2RGB(label_map).astype(np.uint8)).permute(2, 0, 1)
         new_texts = get_class_stacks(label_map)
 
-        caption = f"A real photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}"
+        caption = f"A 4K photo taken by a fisheye camera mounted on the {position} of a car in snowy weather. The scene contains {new_texts}"
         # get label statistics for cropped image
         label_stats = get_label_stats(label_map)
 
@@ -154,6 +187,13 @@ class TestDataset(Dataset):
         condition_img = self.conditioning_img_transforms(condition_img)
     
 
-        return dict(conditioning_pixel_values=condition_img, 
+        # return dict(conditioning_pixel_values=condition_img, 
+        #             prompts=caption,
+        #             label_images=label_image, idx=idx)
+
+        return dict(pixel_values=instance_images,
+                    conditioning_pixel_values=condition_img, 
                     prompts=caption,
+                    masks=mask_tensor,
+                    label_files=label_file,
                     label_images=label_image, idx=idx)

@@ -9,10 +9,21 @@ import torch
 
 def get_cs_classes():
     """Cityscapes class names for external use."""
-    return ['background', 'road', 'obstacle']
+    # return ['background', 'road', 'obstacle']
+    return ['background', 'road', 'sidewalk', 'terrain', "person", "car", "motobike"]
 
 def get_cs_palette():
-    return  [[0, 0, 0], [0, 0, 142], [128, 64, 128]]
+    # return  [[0, 0, 0], [0, 0, 142], [128, 64, 128], [142, 0, 0]]
+    return  [
+                [ 0,   0,   0 ], # 0 - bg
+                [128,  64, 128], # 1 - road
+                [244,  35, 232], # 2 - sidewalk
+                [152, 251, 152], # 3 - terrain
+                [220, 20,  60 ], # 4 - person
+                [ 0,   0, 142 ], # 5 - car
+                [ 0,   0, 230 ], # 6 - motobike
+                [ 142,   0, 0],  # 7 - car mask
+            ]
 
 
 def get_class_stacks(label_map):
@@ -25,7 +36,8 @@ def get_class_stacks(label_map):
 
     labels = np.unique(label_map)
     cs_classes = get_cs_classes()
-    sentence = [cs_classes[i] for i in labels if i!=0]
+    # sentence = [cs_classes[i] for i in labels if (i!=0 and i!= 3)]
+    sentence = [cs_classes[i] for i in labels if (i!=0 and i!= 7)]
     sentence = ", ".join(sentence)
     return sentence
 
@@ -33,7 +45,7 @@ def get_class_stacks(label_map):
 def make_one_hot(label_map):
     label_map = np.array(label_map) if not isinstance(
         label_map, np.ndarray) else label_map
-    num_classes = 3
+    num_classes = 8
     one_hot = np.eye(num_classes)[label_map]
 
     return one_hot
@@ -90,7 +102,8 @@ def map_label2RGB(label_map):
     palette = np.array(get_cs_palette())
 
     color_map = np.zeros((label_map.shape[0], label_map.shape[1], 3))
-    for label in range(0, 3):
+    # for label in range(0, 4):
+    for label in range(0, 8):
         color_map[label_map == label] = palette[label]
 
     color_map = color_map.astype(np.uint8)

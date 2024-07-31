@@ -13,6 +13,7 @@ import os
 import random
 import json
 from pathlib import Path
+import shutil
 
 import accelerate
 import numpy as np
@@ -253,7 +254,7 @@ def main(args):
     train_dataset = make_train_dataset(args, pipeline.tokenizer, accelerator)
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
-        shuffle=True,
+        shuffle=False,
         batch_size=1,
         num_workers=args.dataloader_num_workers,
     )
@@ -270,23 +271,52 @@ def main(args):
         disable=not accelerator.is_local_main_process,
     )
 
+    noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
+    
     for step, batch in enumerate(train_dataloader):
         with torch.inference_mode():
-            idx = str(batch["idx"].item())
+            idx = int(batch["idx"].item())
+            label_file = batch["label_files"][0]
             controlnet_image = batch["conditioning_pixel_values"]
             prompt = batch["prompts"]
             label_images = batch["label_images"][0].permute(1, 2, 0).cpu().numpy()
+            masks = batch["masks"]
+            # model_input = pipeline.vae.encode(batch["pixel_values"].to(dtype=weight_dtype)).latent_dist.sample()
+            # latents = model_input * pipeline.vae.config.scaling_factor
 
+            # # Sample noise that we'll add to the latents
+            # bsz, channels, height, width = model_input.shape
+            negative_prompt = "disfigured, body horror, kitsch, ugly, oversaturated, \
+                                greain, low-res, Deformed, bad anatomy, \
+                                disfigured, poorly drawn face, mutation, mutated, \
+                                extra limb, ugly, poorly drawn hands, missing limb,\
+                                floating limbs, disconnected limbs, malformed hands, \
+                                out of focus, long neck, long body, ugly, disgusting, \
+                                poorly drawn, childish, mutilated, mangled, old, surreal,\
+                                low quality, deformed, broken, artifact, cartoon, unrealistic,\
+                                abstract, low-resolution, indoor, overexposed,\
+                                simmple background, plain background, grainy, deformed structures."
+
+            # negative_prompt = "low quality, blurry, deformed, broken, artifact, cartoon, unrealistic, \
+                                # abstract, excessive text, watermark, logo, low-resolution, indoor"
             for i in range(args.num_samples):
-                image = pipeline(prompt[0], controlnet_image, \
-                                width=640, height=400, guidance_scale=4.0, num_inference_steps=30).images[0]
+                # noise = torch.randn_like(latents)
+                # timesteps = torch.randint(
+                #     750, 800, (bsz,), device=latents.device
+                # )
+                # timesteps = timesteps.long()
+                # noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)latents=noisy_latents,
+                image = pipeline(prompt[0], controlnet_image,  negative_prompt=negative_prompt, guidance_scale=3.5, num_inference_steps=25).images[0]
 
-                image.save(os.path.join(image_dir, "{:06}_{}.png".format(idx, i)))
+                saved_image = np.array(image) * (masks[0].cpu().numpy() / 255.0)
+                saved_image = Image.fromarray(saved_image.astype(np.uint8))
+                saved_image.save(os.path.join(image_dir, "{:06}_{}.png".format(idx, i)))
 
-                image = (np.array(image) * 0.5 + label_images * 0.5).astype(np.uint8)
+                image = (np.array(saved_image) * 0.5 + label_images * 0.5).astype(np.uint8)
                 image = Image.fromarray(image)
                 image.save(os.path.join(label_dir, "{:06}_{}.png".format(idx, i)))
 
+                shutil.copy(label_file, os.path.join(label_dir, "{:06}_{}.npy".format(idx, i)))
         progress_bar.update(1)
 
 

@@ -1,6 +1,6 @@
 export CODE_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/code
-export DATA_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/SYNTHETIC/MASKED_SYNTHETIC/train_latent_1.5
-export PRETRAINED_PATH=exp_real_data_1.5/model-20000
+export DATA_DIR=/lustre/scratch/client/vinai/users/tungdt33/ARP/data/DATA_ARP/synthetic_train_latent_data.json
+export PRETRAINED_PATH=runwayml/stable-diffusion-v1-5
 
 GPU_STRING=$1
 GPU_COUNT=$(echo $GPU_STRING | tr ',' '\n' | wc -l)
@@ -14,17 +14,17 @@ CUDA_VISIBLE_DEVICES=$GPU_STRING torchrun --nnodes 1 --nproc_per_node $GPU_COUNT
                                         --pretrained_model_name_or_path=$PRETRAINED_PATH \
                                         --instance_data_dir=$DATA_DIR \
                                         --instance_prompt='' \
-                                        --output_dir="exp_synthetic_data_1.5_lora_prompt" \
+                                        --output_dir="exp_synthetic_lora" \
                                         --resolution=512 \
                                         --center_crop \
                                         --train_batch_size=32 \
                                         --sample_batch_size=1 \
-                                        --num_train_epochs=200 \
-                                        --checkpointing_steps=5000 \
+                                        --num_train_epochs=20 \
+                                        --checkpointing_steps=200 \
                                         --checkpoints_total_limit=10 \
                                         --gradient_accumulation_steps=4 \
                                         --gradient_checkpointing \
-                                        --learning_rate=2e-06 \
+                                        --learning_rate=4e-06 \
                                         --scale_lr \
                                         --lr_scheduler=constant_with_warmup \
                                         --lr_warmup_steps=500 \

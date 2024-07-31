@@ -18,6 +18,7 @@ import accelerate
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torchvision import transforms
 import torch.utils.checkpoint
 import transformers
 from accelerate import Accelerator
@@ -74,12 +75,16 @@ def save_dict(dict, save_path):
         json.dump(dict, f)
 
 
-def log_validation(controlnet, args, accelerator, weight_dtype, step):
+def log_validation(controlnet, args, accelerator, weight_dtype, step, use_base=False):
     logger.info("Running swap validation... ")
 
     controlnet = accelerator.unwrap_model(controlnet)
 
-    val_model = args.pretrained_model_name_or_path
+    if use_base:
+        val_model = args.base_model
+    else:
+        val_model = args.pretrained_model_name_or_path
+
     pipeline = StableDiffusionControlNetPipeline.from_pretrained(
         val_model,
         controlnet=controlnet,
@@ -109,38 +114,46 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step):
     for i in range(len(validation_images)):
         item = validation_images[i]
         img_file = item["img_path"]
-        label_file = item["semantic_path"]
+        label_file = item["seg_path"]
         position = item["view"]
-        img_type = item["type"]
+        # img_type = item["type"]
+        mask_path = item["mask"]
+
+        mask_img = Image.open(mask_path).resize((512, 512), Image.Resampling.NEAREST)
+        mask_img = (np.array(mask_img)[:, :, 0]).astype(np.uint8)
         
         rgb_image = Image.open(img_file)
         if not rgb_image.mode == "RGB":
             rgb_image = rgb_image.convert("RGB")
-        rgb_image = rgb_image.resize((640, 400), Image.Resampling.LANCZOS)
+        rgb_image = rgb_image.resize((512, 512), Image.Resampling.LANCZOS)
 
-        if args.joint_type and np.random.rand() < 0.5:
-            # swap image type
-            if img_type == "real":
-                img_type = "synthetic"
-            else:
-                img_type = "real"
+        # if args.joint_type and np.random.rand() < 0.5:
+        #     # swap image type
+        #     if img_type == "real":
+        #         img_type = "synthetic"
+        #     else:
+        #         img_type = "real"
         # else:
         #     if img_type == "synthetic":
         #         if np.random.rand() < 0.1:
         #             label_file = ""
 
-        if label_file == "" :
-            label_map = np.zeros((400, 640), dtype=np.uint8)
-            val_prompt = f"A {img_type} photo taken by a fisheye camera mounted on the {position} of a car."
-        else:
-            label_map = np.load(label_file)
-            label_map = np.array(Image.fromarray(label_map).resize((640, 400), Image.Resampling.NEAREST))
-            new_texts = get_class_stacks(label_map)
-            val_prompt = f"A {img_type} photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}" 
+        label_map = np.load(label_file)
+        label_map = np.array(Image.fromarray(label_map).resize((512, 512), Image.Resampling.NEAREST))
+        label_map = np.where(mask_img == 0, 7, label_map)
+        
+        new_texts = get_class_stacks(label_map)
+        val_prompt = f"A photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}"
+        # val_prompt = f"A {img_type} photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}" 
 
         # process cropped image label into one-hot encoding
-        condition_tensor = torch.Tensor(make_one_hot(label_map))
-        condition_tensor = torch.unsqueeze(condition_tensor.permute(2, 0, 1), 0)
+        condition_img = make_one_hot(label_map)
+        conditioning_img_transforms = transforms.Compose(
+                                                            [
+                                                                transforms.ToTensor(),
+                                                            ]
+                                                        )
+        condition_tensor = conditioning_img_transforms(condition_img).unsqueeze(0)
         label_image = Image.fromarray(map_label2RGB(label_map).astype(np.uint8))
         images = []
 
@@ -152,7 +165,7 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step):
             images.append(image)
 
         image_logs.append(
-            {"GT" : rgb_image, "validation_image": label_image, "images": images, "validation_prompt": val_prompt}
+            {"GT" : rgb_image, "validation_image": label_image, "images": images, "validation_prompt": val_prompt + f"_{use_base}"}
         )
 
     for tracker in accelerator.trackers:
@@ -214,6 +227,13 @@ def import_model_class_from_model_name_or_path(pretrained_model_name_or_path: st
 
 def parse_args(input_args=None):
     parser = argparse.ArgumentParser(description="Simple example of a ControlNet training script.")
+    parser.add_argument(
+        "--base_model",
+        type=str,
+        default=None,
+        required=True,
+        help="Path to pretrained model or model identifier from huggingface.co/models.",
+    )
     parser.add_argument(
         "--pretrained_model_name_or_path",
         type=str,
@@ -684,7 +704,7 @@ def main(args):
         controlnet = ControlNetModel.from_pretrained(args.controlnet_model_name_or_path)
     else:
         logger.info("Initializing controlnet weights from unet")
-        controlnet = ControlNetModel.from_unet(unet, conditioning_channels=3)
+        controlnet = ControlNetModel.from_unet(unet, conditioning_channels=8)
 
     # `accelerate` 0.16.0 will have better support for customized saving
     if version.parse(accelerate.__version__) >= version.parse("0.16.0"):
@@ -951,8 +971,8 @@ def main(args):
                 # Get the class pixels statitics
 
                 # Convert images to latent space
-                latents = batch["pixel_values"].to(dtype=weight_dtype)
-                latents = latents * vae.config.scaling_factor
+                model_input = vae.encode(batch["pixel_values"].to(dtype=weight_dtype)).latent_dist.sample()
+                latents = model_input * vae.config.scaling_factor
 
                 # Sample noise that we'll add to the latents
                 noise = torch.randn_like(latents)
@@ -1028,6 +1048,15 @@ def main(args):
                             accelerator,
                             weight_dtype,
                             global_step,
+                            False
+                        )
+                        log_validation(
+                            controlnet,
+                            args,
+                            accelerator,
+                            weight_dtype,
+                            global_step,
+                            True
                         )
                 
             logs = {"loss": loss.detach().item(), "lr": lr_scheduler.get_last_lr()[0]}

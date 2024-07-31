@@ -173,7 +173,7 @@ def log_validation(
     else:
         pipeline_args = {"prompt": validation_prompt}
 
-    pipeline_args.update({"width" : 640, "height" : 400})
+    # pipeline_args.update({"width" : 640, "height" : 400})
     # run inference
     generator = None if args.seed is None else torch.Generator(device=accelerator.device).manual_seed(args.seed)
     images = []
@@ -665,8 +665,6 @@ class DreamBoothDataset(Dataset):
 
         self.image_transforms = transforms.Compose(
             [
-                transforms.Resize(size, interpolation=transforms.InterpolationMode.BILINEAR),
-                transforms.CenterCrop(size) if center_crop else transforms.RandomCrop(size),
                 transforms.ToTensor(),
                 transforms.Normalize([0.5], [0.5]),
             ]
@@ -678,9 +676,16 @@ class DreamBoothDataset(Dataset):
     def __getitem__(self, index):
         example = {}
         image_path = self.instance_images_path[index % self.num_instance_images]
+        img_file = image_path["img_path"]
 
-        instance_latents = np.load(image_path["latent"])
-        example["instance_images"] = torch.from_numpy(instance_latents)
+        rgb_image = Image.open(img_file)
+        if not rgb_image.mode == "RGB":
+            rgb_image = rgb_image.convert("RGB")
+        rgb_image = rgb_image.resize((512, 512), Image.Resampling.LANCZOS)
+        example["instance_images"] = self.image_transforms(rgb_image) # 480 640
+
+        # instance_latents = np.load(image_path["latent"])
+        # example["instance_images"] = torch.from_numpy(instance_latents)
 
         position = image_path["view"] 
 
@@ -688,7 +693,8 @@ class DreamBoothDataset(Dataset):
             example["instance_prompt_ids"] = self.encoder_hidden_states
         else:
             # if np.random.rand() > 0.1:
-            instance_prompt = f"A photo taken by a fisheye camera mounted on the {position} of a car"
+            # instance_prompt = f"A photo taken by a fisheye camera mounted on the {position} of a car"
+            instance_prompt = ""
             # else:
                 # instance_prompt = ""
 
@@ -1257,7 +1263,8 @@ def main(args):
 
                 if vae is not None:
                     # Convert images to latent space
-                    model_input = pixel_values * vae.config.scaling_factor
+                    model_input = vae.encode(batch["pixel_values"].to(dtype=weight_dtype)).latent_dist.sample()
+                    model_input = model_input * vae.config.scaling_factor
                 else:
                     model_input = pixel_values
 
@@ -1413,46 +1420,7 @@ def main(args):
                             global_step,
                             validation_prompt_encoder_hidden_states,
                             validation_prompt_negative_prompt_embeds,
-                            validation_prompt="A photo taken by a fisheye camera mounted on the front of a car",
-                        )
-                        images = log_validation(
-                            unwrap_model(text_encoder) if text_encoder is not None else text_encoder,
-                            tokenizer,
-                            unwrap_model(unet),
-                            vae,
-                            args,
-                            accelerator,
-                            weight_dtype,
-                            global_step,
-                            validation_prompt_encoder_hidden_states,
-                            validation_prompt_negative_prompt_embeds,
-                            validation_prompt="A photo taken by a fisheye camera mounted on the rear of a car",
-                        )
-                        images = log_validation(
-                            unwrap_model(text_encoder) if text_encoder is not None else text_encoder,
-                            tokenizer,
-                            unwrap_model(unet),
-                            vae,
-                            args,
-                            accelerator,
-                            weight_dtype,
-                            global_step,
-                            validation_prompt_encoder_hidden_states,
-                            validation_prompt_negative_prompt_embeds,
-                            validation_prompt="A photo taken by a fisheye camera mounted on the left of a car",
-                        )
-                        images = log_validation(
-                            unwrap_model(text_encoder) if text_encoder is not None else text_encoder,
-                            tokenizer,
-                            unwrap_model(unet),
-                            vae,
-                            args,
-                            accelerator,
-                            weight_dtype,
-                            global_step,
-                            validation_prompt_encoder_hidden_states,
-                            validation_prompt_negative_prompt_embeds,
-                            validation_prompt="A photo taken by a fisheye camera mounted on the right of a car",
+                            validation_prompt=args.validation_prompt,
                         )
 
                         if args.use_ema:
