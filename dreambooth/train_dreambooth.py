@@ -18,14 +18,15 @@ import copy
 import gc
 import importlib
 import itertools
+import json
 import logging
 import math
 import os
 import shutil
 import warnings
 from pathlib import Path
-import json
 
+import diffusers
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -34,6 +35,13 @@ import transformers
 from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import ProjectConfiguration, set_seed
+from diffusers import AutoencoderKL, DDPMScheduler, DiffusionPipeline, StableDiffusionPipeline, UNet2DConditionModel
+from diffusers.optimization import get_scheduler
+from diffusers.training_utils import EMAModel, compute_snr
+from diffusers.utils import check_min_version, is_wandb_available
+from diffusers.utils.hub_utils import load_or_create_model_card, populate_model_card
+from diffusers.utils.import_utils import is_xformers_available
+from diffusers.utils.torch_utils import is_compiled_module
 from huggingface_hub import create_repo, model_info, upload_folder
 from huggingface_hub.utils import insecure_hashlib
 from packaging import version
@@ -43,21 +51,6 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
-
-import diffusers
-from diffusers import (
-    AutoencoderKL,
-    DDPMScheduler,
-    DiffusionPipeline,
-    StableDiffusionPipeline,
-    UNet2DConditionModel,
-)
-from diffusers.optimization import get_scheduler
-from diffusers.training_utils import compute_snr, EMAModel
-from diffusers.utils import check_min_version, is_wandb_available
-from diffusers.utils.hub_utils import load_or_create_model_card, populate_model_card
-from diffusers.utils.import_utils import is_xformers_available
-from diffusers.utils.torch_utils import is_compiled_module
 
 
 if is_wandb_available():
