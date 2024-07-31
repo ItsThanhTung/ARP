@@ -44,7 +44,7 @@ from diffusers.optimization import get_scheduler
 from diffusers.utils import check_min_version, is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
 
-from controlnet.dataset_GTA import GTADataset
+from controlnet.dataset import FisheyeDataset
 from controlnet.tools.training_classes import (
     make_one_hot, 
     get_class_stacks,
@@ -127,16 +127,6 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step, use_base=F
             rgb_image = rgb_image.convert("RGB")
         rgb_image = rgb_image.resize((512, 512), Image.Resampling.LANCZOS)
 
-        # if args.joint_type and np.random.rand() < 0.5:
-        #     # swap image type
-        #     if img_type == "real":
-        #         img_type = "synthetic"
-        #     else:
-        #         img_type = "real"
-        # else:
-        #     if img_type == "synthetic":
-        #         if np.random.rand() < 0.1:
-        #             label_file = ""
 
         label_map = np.load(label_file)
         label_map = np.array(Image.fromarray(label_map).resize((512, 512), Image.Resampling.NEAREST))
@@ -548,47 +538,7 @@ def parse_args(input_args=None):
         type=str,
         help="Path to a file containing a list of image paths to be used for validation."
     )
-    parser.add_argument(
-        "--rcs_enabled",
-        action="store_true",
-        help="Whether or not to use rare class sampling (rcs)."
-    )
-    parser.add_argument(
-        "--joint_type",
-        action="store_true",
-        help="Whether or not to use real and synthetic data at the same time."
-    )
-    parser.add_argument(
-        "--rcs_data_root",
-        type=str,
-        default=None,
-        help="Path to the root of the rcs dataset if rcs is enabled."
-    )
-    parser.add_argument(
-        "--random_crop_enabled",
-        action="store_true",
-        help="Whether or not to use random crop."
-    )
-    parser.add_argument(
-        "--load_args_json",
-        type=str,
-        default=None,
-        help="Whether or not to use random crop."
-    )
-    parser.add_argument(
-        "--dataset_type",
-        type=str,
-        default="GTA",
-        help="Choose between ['GTA', 'Cityscapes']."
-    )
-    parser.add_argument(
-        "--resize_ratios",
-        type=list,
-        default=0.5,
-        help="Resize ratio for controlnet conditioning image."
-    )
 
-    
     if input_args is not None:
         args = parser.parse_args(input_args)
     else:
@@ -604,18 +554,12 @@ def parse_args(input_args=None):
     if args.proportion_empty_prompts < 0 or args.proportion_empty_prompts > 1:
         raise ValueError("`--proportion_empty_prompts` must be in the range [0, 1].")
     
-    if args.rcs_enabled and args.rcs_data_root is None:
-        raise ValueError("`--rcs_data_root` must be set if `--rcs_enabled` is set")
 
     return args
 
 def make_train_dataset(args, tokenizer, accelerator):
     with accelerator.main_process_first():    
-        if args.dataset_type == 'GTA':
-            train_dataset = GTADataset(args, tokenizer)
-        elif args.dataset_type == 'Cityscapes':
-            train_dataset = CityScapesDataset(args, tokenizer) 
-    train_dataset[0]
+        train_dataset = FisheyeDataset(args, tokenizer)
     return train_dataset
 
 def collate_fn(examples):
