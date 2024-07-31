@@ -180,7 +180,9 @@ def log_validation(
     if args.validation_images is None:
         for _ in range(args.num_validation_images):
             with torch.autocast("cuda"):
-                image = pipeline(**pipeline_args, guidance_scale=2.0, num_inference_steps=25, generator=generator).images[0]
+                image = pipeline(
+                    **pipeline_args, guidance_scale=2.0, num_inference_steps=25, generator=generator
+                ).images[0]
             images.append(image)
     else:
         for image in args.validation_images:
@@ -682,12 +684,12 @@ class DreamBoothDataset(Dataset):
         if not rgb_image.mode == "RGB":
             rgb_image = rgb_image.convert("RGB")
         rgb_image = rgb_image.resize((512, 512), Image.Resampling.LANCZOS)
-        example["instance_images"] = self.image_transforms(rgb_image) # 480 640
+        example["instance_images"] = self.image_transforms(rgb_image)  # 480 640
 
         # instance_latents = np.load(image_path["latent"])
         # example["instance_images"] = torch.from_numpy(instance_latents)
 
-        position = image_path["view"] 
+        position = image_path["view"]
 
         if self.encoder_hidden_states is not None:
             example["instance_prompt_ids"] = self.encoder_hidden_states
@@ -696,7 +698,7 @@ class DreamBoothDataset(Dataset):
             # instance_prompt = f"A photo taken by a fisheye camera mounted on the {position} of a car"
             instance_prompt = ""
             # else:
-                # instance_prompt = ""
+            # instance_prompt = ""
 
             text_inputs = tokenize_prompt(
                 self.tokenizer, instance_prompt, tokenizer_max_length=self.tokenizer_max_length
@@ -977,7 +979,7 @@ def main(args):
     def save_model_hook(models, weights, output_dir):
         if accelerator.is_main_process:
             if args.use_ema:
-                ema_unet.save_pretrained(os.path.join(output_dir, "unet_ema"))  
+                ema_unet.save_pretrained(os.path.join(output_dir, "unet_ema"))
 
             for model in models:
                 sub_dir = "unet" if isinstance(model, type(unwrap_model(unet))) else "text_encoder"
@@ -1137,7 +1139,7 @@ def main(args):
         class_prompt_encoder_hidden_states=pre_computed_class_prompt_encoder_hidden_states,
         tokenizer_max_length=args.tokenizer_max_length,
     )
-    train_dataset[0] # for debugging
+    train_dataset[0]  # for debugging
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=args.train_batch_size,
@@ -1145,7 +1147,7 @@ def main(args):
         collate_fn=lambda examples: collate_fn(examples, args.with_prior_preservation),
         num_workers=args.dataloader_num_workers,
     )
-    
+
     # Scheduler and math around the number of training steps.
     overrode_max_train_steps = False
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
@@ -1402,8 +1404,11 @@ def main(args):
 
                     images = []
 
-                    if args.validation_prompt is not None and global_step % args.validation_steps == 0 \
-                                                            or global_step == 1:
+                    if (
+                        args.validation_prompt is not None
+                        and global_step % args.validation_steps == 0
+                        or global_step == 1
+                    ):
                         if args.use_ema:
                             # Store the UNet parameters temporarily and load the EMA parameters to perform inference.
                             ema_unet.store(unet.parameters())
