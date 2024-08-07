@@ -1,0 +1,14 @@
+diffusers
+accelerate
+transformers
+torch
+torchvision
+torch-fidelity
+opencv-python
+urllib3
+tensorboard
+ftfy
+wandb
+
+
+
