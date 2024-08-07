@@ -8,5 +8,4 @@ nohup.out
 data
 cluster
 **/output/
-**/train.sh
 exp*/

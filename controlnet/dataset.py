@@ -101,6 +101,12 @@ class TestDataset(Dataset):
         with open(self.file_path) as json_data:
             self.data = json.load(json_data)
 
+        self.weather = {"sunny" : "",
+                        "snowy" : "in snowy weather",
+                        "night" : "at night",
+                        "foggy" : "in foggy weather"}
+
+        self.weather_prompt = self.weather[args.weather_type]
 
     def __len__(self):
         return len(self.data)
@@ -130,18 +136,13 @@ class TestDataset(Dataset):
         label_image = torch.tensor(map_label2RGB(label_map).astype(np.uint8)).permute(2, 0, 1)
         new_texts = get_class_stacks(label_map)
 
-        caption = f"A 4K photo taken by a fisheye camera mounted on the {position} of a car in snowy weather. The scene contains {new_texts}"
+        caption = f"A 4K photo taken by a fisheye camera mounted on the {position} of a car {self.weather_prompt}. The scene contains {new_texts}"
         # get label statistics for cropped image
         label_stats = get_label_stats(label_map)
 
         # process cropped image label into one-hot encoding
         condition_img = make_one_hot(label_map)
         condition_img = self.conditioning_img_transforms(condition_img)
-    
-
-        # return dict(conditioning_pixel_values=condition_img, 
-        #             prompts=caption,
-        #             label_images=label_image, idx=idx)
 
         return dict(pixel_values=instance_images,
                     conditioning_pixel_values=condition_img, 

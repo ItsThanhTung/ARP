@@ -44,7 +44,7 @@ from diffusers.optimization import get_scheduler
 from diffusers.utils import check_min_version, is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
 
-from controlnet.dataset_GTA import TestDataset
+from controlnet.dataset import TestDataset
 from controlnet.tools.training_classes import (
     make_one_hot, 
     get_class_stacks,
@@ -164,6 +164,12 @@ def parse_args(input_args=None):
         default="test",
         help="Choose between ['GTA', 'Cityscapes']."
     )
+    parser.add_argument(
+        "--weather_type",
+        type=str,
+        default="sunny",
+        help="Choose between ['sunny', 'snowy', 'night', 'foggy']."
+    )
 
     if input_args is not None:
         args = parser.parse_args(input_args)
@@ -281,11 +287,7 @@ def main(args):
             prompt = batch["prompts"]
             label_images = batch["label_images"][0].permute(1, 2, 0).cpu().numpy()
             masks = batch["masks"]
-            # model_input = pipeline.vae.encode(batch["pixel_values"].to(dtype=weight_dtype)).latent_dist.sample()
-            # latents = model_input * pipeline.vae.config.scaling_factor
 
-            # # Sample noise that we'll add to the latents
-            # bsz, channels, height, width = model_input.shape
             negative_prompt = "disfigured, body horror, kitsch, ugly, oversaturated, \
                                 greain, low-res, Deformed, bad anatomy, \
                                 disfigured, poorly drawn face, mutation, mutated, \
@@ -297,15 +299,7 @@ def main(args):
                                 abstract, low-resolution, indoor, overexposed,\
                                 simmple background, plain background, grainy, deformed structures."
 
-            # negative_prompt = "low quality, blurry, deformed, broken, artifact, cartoon, unrealistic, \
-                                # abstract, excessive text, watermark, logo, low-resolution, indoor"
             for i in range(args.num_samples):
-                # noise = torch.randn_like(latents)
-                # timesteps = torch.randint(
-                #     750, 800, (bsz,), device=latents.device
-                # )
-                # timesteps = timesteps.long()
-                # noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)latents=noisy_latents,
                 image = pipeline(prompt[0], controlnet_image,  negative_prompt=negative_prompt, guidance_scale=3.5, num_inference_steps=25).images[0]
 
                 saved_image = np.array(image) * (masks[0].cpu().numpy() / 255.0)
