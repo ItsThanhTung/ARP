@@ -17,17 +17,16 @@ from diffusers import (
 )
 
 
-
 def convert_checkpoint_to_model(
     checkpoint_path: str, output_dir: str, pretrained_model_name_or_path: str = "stabilityai/stable-diffusion-2-1-base"
 ):
     unet = UNet2DConditionModel.from_pretrained(checkpoint_path)
 
     pipeline = StableDiffusionPipeline.from_pretrained(
-                                                            pretrained_model_name_or_path,
-                                                            unet=unet,
-                                                        )
-                                                        
+        pretrained_model_name_or_path,
+        unet=unet,
+    )
+
     pipeline.save_pretrained(output_dir)
 
 

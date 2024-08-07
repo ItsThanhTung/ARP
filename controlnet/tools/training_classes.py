@@ -10,20 +10,21 @@ import torch
 def get_cs_classes():
     """Cityscapes class names for external use."""
     # return ['background', 'road', 'obstacle']
-    return ['background', 'road', 'sidewalk', 'terrain', "person", "car", "motobike"]
+    return ["background", "road", "sidewalk", "terrain", "person", "car", "motobike"]
+
 
 def get_cs_palette():
     # return  [[0, 0, 0], [0, 0, 142], [128, 64, 128], [142, 0, 0]]
-    return  [
-                [ 0,   0,   0 ], # 0 - bg
-                [128,  64, 128], # 1 - road
-                [244,  35, 232], # 2 - sidewalk
-                [152, 251, 152], # 3 - terrain
-                [220, 20,  60 ], # 4 - person
-                [ 0,   0, 142 ], # 5 - car
-                [ 0,   0, 230 ], # 6 - motobike
-                [ 142,   0, 0],  # 7 - car mask
-            ]
+    return [
+        [0, 0, 0],  # 0 - bg
+        [128, 64, 128],  # 1 - road
+        [244, 35, 232],  # 2 - sidewalk
+        [152, 251, 152],  # 3 - terrain
+        [220, 20, 60],  # 4 - person
+        [0, 0, 142],  # 5 - car
+        [0, 0, 230],  # 6 - motobike
+        [142, 0, 0],  # 7 - car mask
+    ]
 
 
 def get_class_stacks(label_map):
@@ -37,14 +38,13 @@ def get_class_stacks(label_map):
     labels = np.unique(label_map)
     cs_classes = get_cs_classes()
     # sentence = [cs_classes[i] for i in labels if (i!=0 and i!= 3)]
-    sentence = [cs_classes[i] for i in labels if (i!=0 and i!= 7)]
+    sentence = [cs_classes[i] for i in labels if (i != 0 and i != 7)]
     sentence = ", ".join(sentence)
     return sentence
 
 
 def make_one_hot(label_map):
-    label_map = np.array(label_map) if not isinstance(
-        label_map, np.ndarray) else label_map
+    label_map = np.array(label_map) if not isinstance(label_map, np.ndarray) else label_map
     num_classes = 8
     one_hot = np.eye(num_classes)[label_map]
 
@@ -52,22 +52,18 @@ def make_one_hot(label_map):
 
 
 def get_rcs_class_probs(data_root, temperature):
-    with open(osp.join(data_root, 'sample_class_stats.json'), 'r') as of:
+    with open(osp.join(data_root, "sample_class_stats.json"), "r") as of:
         sample_class_stats = json.load(of)
     overall_class_stats = {}
     for s in sample_class_stats:
-        s.pop('file')
+        s.pop("file")
         for c, n in s.items():
             c = int(c)
             if c not in overall_class_stats:
                 overall_class_stats[c] = n
             else:
                 overall_class_stats[c] += n
-    overall_class_stats = {
-        k: v
-        for k, v in sorted(
-            overall_class_stats.items(), key=lambda item: item[1])
-    }
+    overall_class_stats = {k: v for k, v in sorted(overall_class_stats.items(), key=lambda item: item[1])}
     freq = torch.tensor(list(overall_class_stats.values()))
     freq = freq / torch.sum(freq)
     freq = 1 - freq
@@ -77,14 +73,13 @@ def get_rcs_class_probs(data_root, temperature):
 
 
 def get_label_stats(label_map):
-    label_map = np.array(label_map) if not isinstance(
-        label_map, np.ndarray) else label_map
+    label_map = np.array(label_map) if not isinstance(label_map, np.ndarray) else label_map
     labels = np.unique(label_map)
     cs_classes = get_cs_classes()
     label_stats = {}
-    
+
     for i in range(len(cs_classes)):
-        label_stats[cs_classes[i]] = np.sum(label_map == i)    
+        label_stats[cs_classes[i]] = np.sum(label_map == i)
     label_stats["others"] = np.sum(label_map == 255)
 
     return label_stats
@@ -95,9 +90,9 @@ def map_label2RGB(label_map):
     args:
         label_map: (H, W)
     return:
-        color_map: (H, W, 3), numpy array    
+        color_map: (H, W, 3), numpy array
     """
-    
+
     label_map = np.array(label_map) if not isinstance(label_map, np.ndarray) else label_map
     palette = np.array(get_cs_palette())
 
@@ -114,7 +109,7 @@ def map_label2RGB(label_map):
 def map_RGB2label(color_map):
     """
     args:
-        color_map: (H, W, 3), numpy array        
+        color_map: (H, W, 3), numpy array
     return:
         label_map: (H, W), numpy array
     """

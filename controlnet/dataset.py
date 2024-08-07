@@ -12,7 +12,14 @@ import os
 import torch
 from torchvision import transforms
 from torch.utils.data import Dataset
-from controlnet.tools.training_classes import get_class_stacks, make_one_hot, get_label_stats, get_rcs_class_probs, map_label2RGB
+from controlnet.tools.training_classes import (
+    get_class_stacks,
+    make_one_hot,
+    get_label_stats,
+    get_rcs_class_probs,
+    map_label2RGB,
+)
+
 
 class FisheyeDataset(Dataset):
     def __init__(self, args, tokenizer):
@@ -37,7 +44,7 @@ class FisheyeDataset(Dataset):
 
         with open(self.file_path) as json_data:
             self.data = json.load(json_data)
-    
+
     def __len__(self):
         return len(self.data)
 
@@ -48,7 +55,7 @@ class FisheyeDataset(Dataset):
         if not rgb_image.mode == "RGB":
             rgb_image = rgb_image.convert("RGB")
         rgb_image = rgb_image.resize((512, 512), Image.Resampling.LANCZOS)
-        instance_images = self.image_transforms(rgb_image) # 480 640
+        instance_images = self.image_transforms(rgb_image)  # 480 640
 
         # latent_path = item["latent"]
         label_file = item["seg_path"]
@@ -63,20 +70,25 @@ class FisheyeDataset(Dataset):
         label_map = np.where(mask_img == 0, 7, label_map)
 
         new_texts = get_class_stacks(label_map)
-        caption = f"A photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}"
+        caption = (
+            f"A photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}"
+        )
 
         # process cropped image label into one-hot encoding
         condition_img = make_one_hot(label_map)
         condition_img = self.conditioning_img_transforms(condition_img)
-    
+
         inputs = self.tokenizer(
-            caption, max_length=self.tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt"
+            caption,
+            max_length=self.tokenizer.model_max_length,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt",
         )
         input_ids = inputs.input_ids[0]
-    
-        return dict(pixel_values=instance_images, 
-                    conditioning_pixel_values=condition_img, 
-                    input_ids=input_ids)
+
+        return dict(pixel_values=instance_images, conditioning_pixel_values=condition_img, input_ids=input_ids)
+
 
 class TestDataset(Dataset):
     def __init__(self, args, tokenizer):
@@ -101,10 +113,7 @@ class TestDataset(Dataset):
         with open(self.file_path) as json_data:
             self.data = json.load(json_data)
 
-        self.weather = {"sunny" : "",
-                        "snowy" : "in snowy weather",
-                        "night" : "at night",
-                        "foggy" : "in foggy weather"}
+        self.weather = {"sunny": "", "snowy": "in snowy weather", "night": "at night", "foggy": "in foggy weather"}
 
         self.weather_prompt = self.weather[args.weather_type]
 
@@ -122,7 +131,7 @@ class TestDataset(Dataset):
         if not rgb_image.mode == "RGB":
             rgb_image = rgb_image.convert("RGB")
         rgb_image = rgb_image.resize((512, 512), Image.Resampling.LANCZOS)
-        instance_images = self.image_transforms(rgb_image) # 480 640
+        instance_images = self.image_transforms(rgb_image)  # 480 640
 
         mask_img = Image.open(mask_path).resize((512, 512), Image.Resampling.NEAREST)
         mask_img = (np.array(mask_img)[:, :, 0]).astype(np.uint8)
@@ -144,9 +153,12 @@ class TestDataset(Dataset):
         condition_img = make_one_hot(label_map)
         condition_img = self.conditioning_img_transforms(condition_img)
 
-        return dict(pixel_values=instance_images,
-                    conditioning_pixel_values=condition_img, 
-                    prompts=caption,
-                    masks=mask_tensor,
-                    label_files=label_file,
-                    label_images=label_image, idx=idx)
+        return dict(
+            pixel_values=instance_images,
+            conditioning_pixel_values=condition_img,
+            prompts=caption,
+            masks=mask_tensor,
+            label_files=label_file,
+            label_images=label_image,
+            idx=idx,
+        )

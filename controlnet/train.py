@@ -1,5 +1,5 @@
 # Obtained from https://github.com/huggingface/diffusers/blob/main/examples/controlnet/train_controlnet.py
-# Modification: 
+# Modification:
 #  - Implement Style Swap technique for the validation phase
 #  - Apply rare class sampling for the training phase
 #  - Convert 3-channel RGB input into 20-channel one-hot embeddings
@@ -45,11 +45,7 @@ from diffusers.utils import check_min_version, is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
 
 from controlnet.dataset import FisheyeDataset
-from controlnet.tools.training_classes import (
-    make_one_hot, 
-    get_class_stacks,
-    map_label2RGB
-    )
+from controlnet.tools.training_classes import make_one_hot, get_class_stacks, map_label2RGB
 
 if is_wandb_available():
     import wandb
@@ -70,8 +66,8 @@ def combine_dicts(dicts_list):
 
 
 def save_dict(dict, save_path):
-    with open(save_path, 'w') as f:
-        dict = {k: int(v) if isinstance(v, np.int64) else v for k,v in dict.items()}
+    with open(save_path, "w") as f:
+        dict = {k: int(v) if isinstance(v, np.int64) else v for k, v in dict.items()}
         json.dump(dict, f)
 
 
@@ -104,7 +100,6 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step, use_base=F
     else:
         generator = torch.Generator(device=accelerator.device).manual_seed(args.seed)
 
-
     with open(args.validate_file) as json_data:
         validation_images = json.load(json_data)
 
@@ -121,28 +116,29 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step, use_base=F
 
         mask_img = Image.open(mask_path).resize((512, 512), Image.Resampling.NEAREST)
         mask_img = (np.array(mask_img)[:, :, 0]).astype(np.uint8)
-        
+
         rgb_image = Image.open(img_file)
         if not rgb_image.mode == "RGB":
             rgb_image = rgb_image.convert("RGB")
         rgb_image = rgb_image.resize((512, 512), Image.Resampling.LANCZOS)
 
-
         label_map = np.load(label_file)
         label_map = np.array(Image.fromarray(label_map).resize((512, 512), Image.Resampling.NEAREST))
         label_map = np.where(mask_img == 0, 7, label_map)
-        
+
         new_texts = get_class_stacks(label_map)
-        val_prompt = f"A photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}"
-        # val_prompt = f"A {img_type} photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}" 
+        val_prompt = (
+            f"A photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}"
+        )
+        # val_prompt = f"A {img_type} photo taken by a fisheye camera mounted on the {position} of a car. The scene contains {new_texts}"
 
         # process cropped image label into one-hot encoding
         condition_img = make_one_hot(label_map)
         conditioning_img_transforms = transforms.Compose(
-                                                            [
-                                                                transforms.ToTensor(),
-                                                            ]
-                                                        )
+            [
+                transforms.ToTensor(),
+            ]
+        )
         condition_tensor = conditioning_img_transforms(condition_img).unsqueeze(0)
         label_image = Image.fromarray(map_label2RGB(label_map).astype(np.uint8))
         images = []
@@ -155,7 +151,12 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step, use_base=F
             images.append(image)
 
         image_logs.append(
-            {"GT" : rgb_image, "validation_image": label_image, "images": images, "validation_prompt": val_prompt + f"_{use_base}"}
+            {
+                "GT": rgb_image,
+                "validation_image": label_image,
+                "images": images,
+                "validation_prompt": val_prompt + f"_{use_base}",
+            }
         )
 
     for tracker in accelerator.trackers:
@@ -173,7 +174,9 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step, use_base=F
                 for image in images:
                     formatted_images.append(np.asarray(image))
                 for image in images:
-                    formatted_images.append((np.asarray(image) * 0.5 + np.asarray(validation_image) * 0.5).astype(np.uint8))
+                    formatted_images.append(
+                        (np.asarray(image) * 0.5 + np.asarray(validation_image) * 0.5).astype(np.uint8)
+                    )
 
                 formatted_images = np.stack(formatted_images)
 
@@ -196,6 +199,7 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step, use_base=F
         else:
             logger.warn(f"image logging not implemented for {tracker.name}")
 
+
 def import_model_class_from_model_name_or_path(pretrained_model_name_or_path: str, revision: str):
     text_encoder_config = PretrainedConfig.from_pretrained(
         pretrained_model_name_or_path,
@@ -214,6 +218,7 @@ def import_model_class_from_model_name_or_path(pretrained_model_name_or_path: st
         return RobertaSeriesModelWithTransformation
     else:
         raise ValueError(f"{model_class} is not supported.")
+
 
 def parse_args(input_args=None):
     parser = argparse.ArgumentParser(description="Simple example of a ControlNet training script.")
@@ -242,7 +247,7 @@ def parse_args(input_args=None):
         "--inference_basemodel_path",
         type=str,
         default=None,
-        help="Path to the stable diffusion model used during validation for style swap."
+        help="Path to the stable diffusion model used during validation for style swap.",
     )
     parser.add_argument(
         "--revision",
@@ -531,12 +536,10 @@ def parse_args(input_args=None):
         "--partial_freeze_expid",
         type=int,
         default=None,
-        help="Partially freeze weights coming from stable diffusion and only traint the rest of the controlnet."
+        help="Partially freeze weights coming from stable diffusion and only traint the rest of the controlnet.",
     )
     parser.add_argument(
-        "--validate_file",
-        type=str,
-        help="Path to a file containing a list of image paths to be used for validation."
+        "--validate_file", type=str, help="Path to a file containing a list of image paths to be used for validation."
     )
 
     if input_args is not None:
@@ -547,20 +550,20 @@ def parse_args(input_args=None):
     # save args to file
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir, exist_ok=True)
-    with open(os.path.join(args.output_dir, 'exp_args.json'), 'w') as f:
+    with open(os.path.join(args.output_dir, "exp_args.json"), "w") as f:
         json.dump(vars(args), f, indent=2)
-
 
     if args.proportion_empty_prompts < 0 or args.proportion_empty_prompts > 1:
         raise ValueError("`--proportion_empty_prompts` must be in the range [0, 1].")
-    
 
     return args
 
+
 def make_train_dataset(args, tokenizer, accelerator):
-    with accelerator.main_process_first():    
+    with accelerator.main_process_first():
         train_dataset = FisheyeDataset(args, tokenizer)
     return train_dataset
+
 
 def collate_fn(examples):
     pixel_values = torch.stack([example["pixel_values"] for example in examples])
@@ -570,7 +573,7 @@ def collate_fn(examples):
     conditioning_pixel_values = conditioning_pixel_values.to(memory_format=torch.contiguous_format).float()
 
     input_ids = torch.stack([example["input_ids"] for example in examples])
-    
+
     return {
         "pixel_values": pixel_values,
         "conditioning_pixel_values": conditioning_pixel_values,
@@ -736,7 +739,6 @@ def main(args):
         optimizer_class = bnb.optim.AdamW8bit
     else:
         optimizer_class = torch.optim.AdamW
-   
 
     if args.partial_freeze_expid == 1:
         # freeze whatever is not in the unet
@@ -752,8 +754,8 @@ def main(args):
         for param in controlnet.down_blocks.parameters():
             param.requires_grad = False
         for param in controlnet.mid_block.parameters():
-            param.requires_grad = False  
-        logger.info("Train LiteControlNet1: Freezing all the unet")  
+            param.requires_grad = False
+        logger.info("Train LiteControlNet1: Freezing all the unet")
     elif args.partial_freeze_expid == 2:
         # freeze whatever is not in the unet except the first down block
         for param in controlnet.conv_in.parameters():
@@ -768,8 +770,8 @@ def main(args):
         for param in controlnet.down_blocks[1:].parameters():
             param.requires_grad = False
         for param in controlnet.mid_block.parameters():
-            param.requires_grad = False   
-        logger.info("Train LiteControlNet2: Freezing all the unet except the first down block")    
+            param.requires_grad = False
+        logger.info("Train LiteControlNet2: Freezing all the unet except the first down block")
     elif args.partial_freeze_expid == 3:
         # freeze whatever is not in the unet except the mid block
         for param in controlnet.conv_in.parameters():
@@ -783,9 +785,9 @@ def main(args):
                 param.requires_grad = False
         for param in controlnet.down_blocks.parameters():
             param.requires_grad = False
-        logger.info("Train LiteControlNet3: Freezing all the unet except the middle block")    
+        logger.info("Train LiteControlNet3: Freezing all the unet except the middle block")
     else:
-        logger.info("Train original ControlNet, no freezing")    
+        logger.info("Train original ControlNet, no freezing")
 
     # Optimizer creation
     params_to_optimize = filter(lambda p: p.requires_grad, controlnet.parameters())
@@ -985,31 +987,16 @@ def main(args):
                         logger.info(f"Saved state to {ckpt_save_path}")
                         logger.info(f"Saved label stats to {label_stats_save_path}")
 
-                    if args.validate_file is not None and global_step % args.validation_steps == 0:                    
-                        log_validation(
-                            controlnet,
-                            args,
-                            accelerator,
-                            weight_dtype,
-                            global_step,
-                            False
-                        )
-                        log_validation(
-                            controlnet,
-                            args,
-                            accelerator,
-                            weight_dtype,
-                            global_step,
-                            True
-                        )
-                
+                    if args.validate_file is not None and global_step % args.validation_steps == 0:
+                        log_validation(controlnet, args, accelerator, weight_dtype, global_step, False)
+                        log_validation(controlnet, args, accelerator, weight_dtype, global_step, True)
+
             logs = {"loss": loss.detach().item(), "lr": lr_scheduler.get_last_lr()[0]}
             progress_bar.set_postfix(**logs)
             accelerator.log(logs, step=global_step)
 
             if global_step >= args.max_train_steps:
                 break
-
 
     # Create the pipeline using using the trained modules and save it.
     accelerator.wait_for_everyone()

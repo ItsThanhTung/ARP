@@ -1,5 +1,5 @@
 # Obtained from https://github.com/huggingface/diffusers/blob/main/examples/controlnet/train_controlnet.py
-# Modification: 
+# Modification:
 #  - Implement Style Swap technique for the validation phase
 #  - Apply rare class sampling for the training phase
 #  - Convert 3-channel RGB input into 20-channel one-hot embeddings
@@ -45,11 +45,7 @@ from diffusers.utils import check_min_version, is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
 
 from controlnet.dataset import TestDataset
-from controlnet.tools.training_classes import (
-    make_one_hot, 
-    get_class_stacks,
-    map_label2RGB
-    )
+from controlnet.tools.training_classes import make_one_hot, get_class_stacks, map_label2RGB
 
 if is_wandb_available():
     import wandb
@@ -158,17 +154,9 @@ def parse_args(input_args=None):
             "value if set."
         ),
     )
+    parser.add_argument("--dataset_type", type=str, default="test", help="Choose between ['GTA', 'Cityscapes'].")
     parser.add_argument(
-        "--dataset_type",
-        type=str,
-        default="test",
-        help="Choose between ['GTA', 'Cityscapes']."
-    )
-    parser.add_argument(
-        "--weather_type",
-        type=str,
-        default="sunny",
-        help="Choose between ['sunny', 'snowy', 'night', 'foggy']."
+        "--weather_type", type=str, default="sunny", help="Choose between ['sunny', 'snowy', 'night', 'foggy']."
     )
 
     if input_args is not None:
@@ -178,9 +166,10 @@ def parse_args(input_args=None):
 
     return args
 
+
 def make_train_dataset(args, tokenizer, accelerator):
-    with accelerator.main_process_first():    
-        if args.dataset_type == 'test':
+    with accelerator.main_process_first():
+        if args.dataset_type == "test":
             train_dataset = TestDataset(args, tokenizer)
     train_dataset[0]
     return train_dataset
@@ -190,7 +179,9 @@ def main(args):
     logging_dir = Path(args.output_dir)
     ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=False)
     accelerator = Accelerator(
-        split_batches=False, mixed_precision=args.mixed_precision, kwargs_handlers=[ddp_kwargs],
+        split_batches=False,
+        mixed_precision=args.mixed_precision,
+        kwargs_handlers=[ddp_kwargs],
     )
 
     # Make one log on every process with the configuration for debugging.
@@ -225,7 +216,6 @@ def main(args):
     elif accelerator.mixed_precision == "bf16":
         weight_dtype = torch.bfloat16
 
-
     logger.info("Loading existing controlnet weights")
     controlnet = ControlNetModel.from_pretrained(args.controlnet_model_name_or_path)
 
@@ -238,7 +228,7 @@ def main(args):
     )
 
     pipeline.scheduler = UniPCMultistepScheduler.from_config(pipeline.scheduler.config)
-    
+
     if args.enable_xformers_memory_efficient_attention:
         if is_xformers_available():
             import xformers
@@ -278,7 +268,7 @@ def main(args):
     )
 
     noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
-    
+
     for step, batch in enumerate(train_dataloader):
         with torch.inference_mode():
             idx = int(batch["idx"].item())
@@ -300,7 +290,13 @@ def main(args):
                                 simmple background, plain background, grainy, deformed structures."
 
             for i in range(args.num_samples):
-                image = pipeline(prompt[0], controlnet_image,  negative_prompt=negative_prompt, guidance_scale=3.5, num_inference_steps=25).images[0]
+                image = pipeline(
+                    prompt[0],
+                    controlnet_image,
+                    negative_prompt=negative_prompt,
+                    guidance_scale=3.5,
+                    num_inference_steps=25,
+                ).images[0]
 
                 saved_image = np.array(image) * (masks[0].cpu().numpy() / 255.0)
                 saved_image = Image.fromarray(saved_image.astype(np.uint8))
