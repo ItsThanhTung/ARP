@@ -7,15 +7,16 @@
 
 
 import argparse
+import json
 import logging
 import math
 import os
 import random
-import json
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 import accelerate
+import diffusers
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -24,28 +25,19 @@ import transformers
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from accelerate.logging import get_logger
 from accelerate.utils import ProjectConfiguration, set_seed
+from controlnet.dataset import TestDataset
+from controlnet.tools.training_classes import get_class_stacks, make_one_hot, map_label2RGB
+from diffusers import AutoencoderKL, ControlNetModel, DDPMScheduler, UNet2DConditionModel, UniPCMultistepScheduler
+from diffusers.optimization import get_scheduler
+from diffusers.pipelines import StableDiffusionControlNetPipeline
+from diffusers.utils import check_min_version, is_wandb_available
+from diffusers.utils.import_utils import is_xformers_available
 from huggingface_hub import create_repo, upload_folder
 from packaging import version
 from PIL import Image
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
 
-import diffusers
-
-from diffusers import (
-    AutoencoderKL,
-    DDPMScheduler,
-    UNet2DConditionModel,
-    UniPCMultistepScheduler,
-    ControlNetModel,
-)
-from diffusers.pipelines import StableDiffusionControlNetPipeline
-from diffusers.optimization import get_scheduler
-from diffusers.utils import check_min_version, is_wandb_available
-from diffusers.utils.import_utils import is_xformers_available
-
-from controlnet.dataset import TestDataset
-from controlnet.tools.training_classes import make_one_hot, get_class_stacks, map_label2RGB
 
 if is_wandb_available():
     import wandb

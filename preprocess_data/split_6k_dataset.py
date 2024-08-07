@@ -1,8 +1,10 @@
+import json
 import os
+from collections import defaultdict
+
 import numpy as np
 from PIL import Image
-import json
-from collections import defaultdict
+
 
 image_dir = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/sim2realARP/real/images"
 segment_dir = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/sim2realARP/real/segments"

@@ -2,9 +2,10 @@
 
 import json
 import os.path as osp
-from PIL import Image
+
 import numpy as np
 import torch
+from PIL import Image
 
 
 def get_cs_classes():

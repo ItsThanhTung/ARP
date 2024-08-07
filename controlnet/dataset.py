@@ -1,24 +1,23 @@
 # Author: Yuru Jia
 # Last Modified: 2023-10-19
 
-import random
 import json
+import os
 import os.path as osp
+import random
 
 import numpy as np
-from PIL import Image
-import os
-
 import torch
-from torchvision import transforms
-from torch.utils.data import Dataset
 from controlnet.tools.training_classes import (
     get_class_stacks,
-    make_one_hot,
     get_label_stats,
     get_rcs_class_probs,
+    make_one_hot,
     map_label2RGB,
 )
+from PIL import Image
+from torch.utils.data import Dataset
+from torchvision import transforms
 
 
 class FisheyeDataset(Dataset):

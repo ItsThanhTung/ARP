@@ -1,20 +1,13 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
-import os
 import json
-import tyro
+import os
 import shutil
 
+import tyro
 from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration
-
-from diffusers import (
-    AutoencoderKL,
-    DDPMScheduler,
-    DiffusionPipeline,
-    StableDiffusionPipeline,
-    UNet2DConditionModel,
-)
+from diffusers import AutoencoderKL, DDPMScheduler, DiffusionPipeline, StableDiffusionPipeline, UNet2DConditionModel
 
 
 def convert_checkpoint_to_model(
