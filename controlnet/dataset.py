@@ -2,19 +2,10 @@
 # Last Modified: 2023-10-19
 
 import json
-import os
-import os.path as osp
-import random
 
 import numpy as np
 import torch
-from controlnet.tools.training_classes import (
-    get_class_stacks,
-    get_label_stats,
-    get_rcs_class_probs,
-    make_one_hot,
-    map_label2RGB,
-)
+from controlnet.tools.training_classes import get_class_stacks, make_one_hot, map_label2RGB
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
@@ -145,8 +136,6 @@ class TestDataset(Dataset):
         new_texts = get_class_stacks(label_map)
 
         caption = f"A 4K photo taken by a fisheye camera mounted on the {position} of a car {self.weather_prompt}. The scene contains {new_texts}"
-        # get label statistics for cropped image
-        label_stats = get_label_stats(label_map)
 
         # process cropped image label into one-hot encoding
         condition_img = make_one_hot(label_map)

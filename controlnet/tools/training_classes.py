@@ -73,19 +73,6 @@ def get_rcs_class_probs(data_root, temperature):
     return list(overall_class_stats.keys()), freq.numpy()
 
 
-def get_label_stats(label_map):
-    label_map = np.array(label_map) if not isinstance(label_map, np.ndarray) else label_map
-    labels = np.unique(label_map)
-    cs_classes = get_cs_classes()
-    label_stats = {}
-
-    for i in range(len(cs_classes)):
-        label_stats[cs_classes[i]] = np.sum(label_map == i)
-    label_stats["others"] = np.sum(label_map == 255)
-
-    return label_stats
-
-
 def map_label2RGB(label_map):
     """
     args:

@@ -29,7 +29,6 @@ from controlnet.tools.training_classes import get_class_stacks, make_one_hot, ma
 from diffusers import AutoencoderKL, ControlNetModel, DDPMScheduler, UNet2DConditionModel, UniPCMultistepScheduler
 from diffusers.optimization import get_scheduler
 from diffusers.pipelines import StableDiffusionControlNetPipeline
-from diffusers.utils import check_min_version, is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
 from huggingface_hub import create_repo, upload_folder
 from packaging import version
@@ -37,10 +36,6 @@ from PIL import Image
 from torchvision import transforms
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
-
-
-if is_wandb_available():
-    import wandb
 
 
 logger = get_logger(__name__)
@@ -173,21 +168,6 @@ def log_validation(controlnet, args, accelerator, weight_dtype, step, use_base=F
                 formatted_images = np.stack(formatted_images)
 
                 tracker.writer.add_images(validation_prompt, formatted_images, step, dataformats="NHWC")
-        elif tracker.name == "wandb":
-            formatted_images = []
-
-            for log in image_logs:
-                images = log["images"]
-                validation_prompt = log["validation_prompt"]
-                validation_image = log["validation_image"]
-
-                formatted_images.append(wandb.Image(validation_image, caption="Controlnet conditioning"))
-
-                for image in images:
-                    image = wandb.Image(image, caption=validation_prompt)
-                    formatted_images.append(image)
-
-            tracker.log({"validation": formatted_images})
         else:
             logger.warn(f"image logging not implemented for {tracker.name}")
 

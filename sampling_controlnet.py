@@ -7,40 +7,26 @@
 
 
 import argparse
-import json
 import logging
-import math
 import os
-import random
 import shutil
-from pathlib import Path
 
-import accelerate
 import diffusers
 import numpy as np
 import torch
-import torch.nn.functional as F
 import torch.utils.checkpoint
 import transformers
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from accelerate.logging import get_logger
-from accelerate.utils import ProjectConfiguration, set_seed
+from accelerate.utils import set_seed
 from controlnet.dataset import TestDataset
-from controlnet.tools.training_classes import get_class_stacks, make_one_hot, map_label2RGB
-from diffusers import AutoencoderKL, ControlNetModel, DDPMScheduler, UNet2DConditionModel, UniPCMultistepScheduler
-from diffusers.optimization import get_scheduler
+from diffusers import ControlNetModel, UniPCMultistepScheduler
 from diffusers.pipelines import StableDiffusionControlNetPipeline
-from diffusers.utils import check_min_version, is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
-from huggingface_hub import create_repo, upload_folder
 from packaging import version
 from PIL import Image
 from tqdm.auto import tqdm
-from transformers import AutoTokenizer, PretrainedConfig
-
-
-if is_wandb_available():
-    import wandb
+from transformers import PretrainedConfig
 
 
 logger = get_logger(__name__)
@@ -168,7 +154,6 @@ def make_train_dataset(args, tokenizer, accelerator):
 
 
 def main(args):
-    logging_dir = Path(args.output_dir)
     ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=False)
     accelerator = Accelerator(
         split_batches=False,
@@ -258,8 +243,6 @@ def main(args):
         # Only show the progress bar once on each machine.
         disable=not accelerator.is_local_main_process,
     )
-
-    noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
 
     for step, batch in enumerate(train_dataloader):
         with torch.inference_mode():

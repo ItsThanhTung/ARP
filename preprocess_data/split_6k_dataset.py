@@ -3,7 +3,6 @@ import os
 from collections import defaultdict
 
 import numpy as np
-from PIL import Image
 
 
 image_dir = "/lustre/scratch/client/vinai/users/tungdt33/ARP/data/sim2realARP/real/images"
